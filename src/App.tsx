@@ -1,15 +1,16 @@
 import { useAppSelector } from "@/store/hooks";
 import type { Team } from "@/shared/types/league";
+import { selectCurrentRound, selectTeams } from "./features/league/selectors/selectors";
 
 function App() {
   // 1. Отримуємо об'єкт команд з нашого глобального стейту ліги
-  const teamsObj = useAppSelector((state) => state.league.teams);
+  const teamsObj = useAppSelector(selectTeams);
 
   // 2. Перетворюємо об'єкт Record<string, Team> на масив Team[]
   const teamsList = Object.values(teamsObj) as Team[];
 
   // 3. Додатково можемо вивести поточний тур для перевірки UI
-  const currentRound = useAppSelector((state) => state.league.currentRound);
+  const currentRound = useAppSelector(selectCurrentRound);
 
   if (teamsList.length === 0) {
     return <div className="league-container">Команд не знайдено. Перевірте initialState.</div>;
