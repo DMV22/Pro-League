@@ -1,8 +1,13 @@
-import reducer from '@/features/league/slices/league.slice'
+import leagueReducer from '@/features/league/slices/league.slice'
+import uiReducer from '@/features/ui/slices/ui.slice'
+
 import { configureStore } from '@reduxjs/toolkit'
 
 export const store = configureStore({
-  reducer: reducer,
+  reducer: {
+    league: leagueReducer,
+    ui: uiReducer,
+  }
 })
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

@@ -3,13 +3,13 @@ import type { Team } from "@/shared/types/league";
 
 function App() {
   // 1. Отримуємо об'єкт команд з нашого глобального стейту ліги
-  const teamsObj = useAppSelector((state) => state.teams);
+  const teamsObj = useAppSelector((state) => state.league.teams);
 
   // 2. Перетворюємо об'єкт Record<string, Team> на масив Team[]
   const teamsList = Object.values(teamsObj) as Team[];
 
   // 3. Додатково можемо вивести поточний тур для перевірки UI
-  const currentRound = useAppSelector((state) => state.currentRound);
+  const currentRound = useAppSelector((state) => state.league.currentRound);
 
   if (teamsList.length === 0) {
     return <div className="league-container">Команд не знайдено. Перевірте initialState.</div>;
