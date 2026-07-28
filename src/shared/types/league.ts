@@ -59,8 +59,3 @@ export interface UiState {
     maxPrice?: number;
   };
 }
-
-export interface RootState {
-  league: LeagueState;
-  ui: UiState;
-}
