@@ -64,7 +64,13 @@ export const initialState: LeagueState = {
 const leagueSlice = createSlice({
   name: 'league',
   initialState,
-  reducers: {}
+  reducers: {
+    nextRound(state) {
+      state.currentRound += 1;
+    },
+  }
 });
+
+export const { nextRound } = leagueSlice.actions;
 
 export default leagueSlice.reducer;

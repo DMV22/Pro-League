@@ -1,7 +1,8 @@
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectCurrentRound, selectTeamsList } from "./features/league/selectors/league.selectors";
 import { selectSelectedTeamId } from "./features/ui/selectors/ui.selectors";
-import { setSelectedRound, setSelectedTeamId } from "./features/ui/slices/ui.slice";
+import { setSelectedTeamId } from "./features/ui/slices/ui.slice";
+import { nextRound } from "./features/league/slices/league.slice";
 
 function App() {
   const dispatch = useAppDispatch();
@@ -12,9 +13,7 @@ function App() {
 
   // Handler для зміни туру (для демонстрації dispatch)
   const handleNextRound = () => {
-    if (currentRound) {
-      dispatch(setSelectedRound(currentRound + 1));
-    }
+    dispatch(nextRound());
   };
 
   // Handler для кліку на картку команди
