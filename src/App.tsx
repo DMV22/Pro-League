@@ -30,21 +30,21 @@ function App() {
 
   return (
     <main className="league-container">
-      <header className="league-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header className="league-header">
         <div>
-          <h2>⚽ Футбольна Ліга України</h2>
-          <p><strong>Поточний тур:</strong> {currentRound ?? 1}</p>
+          <h2 className="league-title">⚽ Футбольна Ліга України</h2>
+          <p className="league-round"><strong>Поточний тур:</strong> {currentRound ?? 1}</p>
         </div>
         <button
           onClick={handleNextRound}
-          style={{ padding: '8px 16px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #0070f3', backgroundColor: '#0070f3', color: '#fff' }}
+          className="btn-next-round"
         >
           Наступний тур ➔
         </button>
       </header>
 
       <section>
-        <h3>Список команд (Клікніть на картку для вибору):</h3>
+        <h3 className="teams-title">Список команд (Клікніть на картку для вибору):</h3>
         <div className="teams-grid">
           {teamsList.map((team) => {
             const isSelected = team.id === selectedTeamId;
@@ -53,14 +53,7 @@ function App() {
               <div
                 key={team.id}
                 onClick={() => handleSelectTeam(team.id)}
-                className="team-card"
-                style={{
-                  cursor: 'pointer',
-                  borderColor: isSelected ? '#0070f3' : '#ccc',
-                  boxShadow: isSelected ? '0 0 8px rgba(0, 112, 243, 0.3)' : 'none',
-                  backgroundColor: isSelected ? '#f0f7ff' : '#f9f9f9',
-                  transition: 'all 0.2s ease-in-out'
-                }}
+                className={`team-card ${isSelected ? 'team-card-selected' : ''}`}
               >
                 <h4 className="team-name">
                   {isSelected ? '⭐ ' : ''}{team.name}
