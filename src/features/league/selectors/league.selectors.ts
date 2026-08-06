@@ -1,4 +1,4 @@
-import type { StandingsEntry, Team } from "@/shared/types/league";
+import type { Player, StandingsEntry, Team } from "@/shared/types/league";
 import type { RootState } from "@/store";
 import { createSelector } from "@reduxjs/toolkit";
 
@@ -7,6 +7,8 @@ export const selectLeague = (state: RootState) => state.league;
 export const selectTeams = (state: RootState) => state.league.teams;
 export const selectMatches = (state: RootState) => state.league.matches;
 export const selectCurrentRound = (state: RootState) => state.league.currentRound;
+
+const selectPlayerFilter = (state: RootState) => state.ui.playerFilter;
 
 export const selectTeamsList = createSelector(
   [selectTeams], // Вхідна залежність
@@ -77,5 +79,19 @@ export const selectStandings = createSelector(
     });
 
     return standings;
+  }
+);
+
+export const selectFilteredPlayers = createSelector(
+  [selectTeams, selectPlayerFilter],
+  (teams, filter): Player[] => {
+    const allPlayers = Object.values(teams).flatMap((team) => team.players);
+
+    return allPlayers.filter((player) => {
+      if (filter.position && player.position !== filter.position) return false;
+      if (filter.minPrice !== undefined && player.price < filter.minPrice) return false;
+      if (filter.maxPrice !== undefined && player.price > filter.maxPrice) return false;
+      return true;
+    });
   }
 );
