@@ -1,4 +1,4 @@
-import type { LeagueState } from "@/shared/types/league";
+import type { LeagueState, Match } from "@/shared/types/league";
 import { createSlice } from "@reduxjs/toolkit";
 
 export const initialState: LeagueState = {
@@ -60,7 +60,6 @@ export const initialState: LeagueState = {
   currentRound: 1
 };
 
-
 const leagueSlice = createSlice({
   name: 'league',
   initialState,
@@ -68,9 +67,25 @@ const leagueSlice = createSlice({
     nextRound(state) {
       state.currentRound += 1;
     },
+    addMatchResult(state, action: { payload: Match }) {
+
+      // 1. Save the match in the dictionary
+      const { id, homeTeamId, awayTeamId, homeGoals, awayGoals, round } = action.payload;
+      state.matches[id] = {
+        id,
+        homeTeamId,
+        awayTeamId,
+        homeGoals,
+        awayGoals,
+        round,
+        scorers: []
+      };
+
+      // TODO: update standings entries based on this match
+    }
   }
 });
 
-export const { nextRound } = leagueSlice.actions;
+export const { nextRound, addMatchResult } = leagueSlice.actions;
 
 export default leagueSlice.reducer;
