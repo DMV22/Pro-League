@@ -1,20 +1,12 @@
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectTeamsList } from "@/features/league/selectors/league.selectors";
-import { selectSelectedTeamId } from "@/features/ui/selectors/ui.selectors";
-import { setSelectedTeamId } from "@/features/ui/slices/ui.slice";
+import type { Team } from "@/shared/types/league";
 
-export default function TeamsList() {
-  const dispatch = useAppDispatch();
-  const teamsList = useAppSelector(selectTeamsList);
-  const selectedTeamId = useAppSelector(selectSelectedTeamId);
+interface TeamsListProps { 
+  teamsList: Team[];
+  selectedTeamId: string | null;
+  onSelectTeam: (teamId: string) => void;
+}
 
-  // Handler для кліку на картку команди
-  const handleSelectTeam = (teamId: string) => {
-    // Якщо команда вже вибрана - знімаємо виділення (null), інакше - вибираємо
-    const nextId = selectedTeamId === teamId ? null : teamId;
-    dispatch(setSelectedTeamId(nextId));
-  };
-
+export default function TeamsList({ teamsList, selectedTeamId, onSelectTeam }: TeamsListProps) {
   return (
     <section>
       <h3 className="teams-title">Список команд (Клікніть на картку для вибору):</h3>
@@ -25,7 +17,7 @@ export default function TeamsList() {
           return (
             <div
               key={team.id}
-              onClick={() => handleSelectTeam(team.id)}
+              onClick={() => onSelectTeam(team.id)}
               className={`team-card ${isSelected ? 'team-card-selected' : ''}`}
             >
               <h4 className="team-name">

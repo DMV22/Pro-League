@@ -1,16 +1,14 @@
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectStandings, selectFilteredPlayers, selectTeams } from "@/features/league/selectors/league.selectors";
-import type { Player, UiState } from "@/shared/types/league";
-import { selectStandingsSort } from "@/features/ui/selectors/ui.selectors";
-import { setStandingsSort } from "@/features/ui/slices/ui.slice";
+import type { Player, StandingsEntry, Team, UiState } from "@/shared/types/league";
 
-export default function DebugPanel() {
-  const dispatch = useAppDispatch();
+interface DebugPanelProps {
+  teamsObj: Record<string, Team>;
+  standingsList: StandingsEntry[];
+  filteredPlayers: Player[];
+  currentSort: UiState['standingsSort'];
+  onSortChange: (sortType: UiState['standingsSort']) => void;
+}
 
-  const teamsObj = useAppSelector(selectTeams);
-  const standingsList = useAppSelector(selectStandings);
-  const filteredPlayers = useAppSelector(selectFilteredPlayers);
-  const currentSort = useAppSelector(selectStandingsSort);
+export default function DebugPanel({ teamsObj, standingsList, filteredPlayers, currentSort, onSortChange }: DebugPanelProps) {
 
   // Конфігурація для кнопок сортування
   const sortOptions: { value: UiState['standingsSort']; label: string }[] = [
@@ -53,7 +51,7 @@ export default function DebugPanel() {
                 return (
                   <button
                     key={option.value}
-                    onClick={() => dispatch(setStandingsSort(option.value))}
+                    onClick={() => onSortChange(option.value)}
                     className={`btn-sort ${isActive ? 'btn-sort-active' : ''}`}
                   >
                     {option.label}

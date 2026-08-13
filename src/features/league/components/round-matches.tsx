@@ -1,15 +1,13 @@
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import type { Match, Team } from "@/shared/types/league";
 
-import { simulateMatchday } from "@/features/league/slices/league.slice";
-import { selectCurrentRound, selectMatches, selectTeams } from "@/features/league/selectors/league.selectors";
+interface RoundMatchesProps {
+  currentRound: number;
+  teamsObj: Record<string, Team>;
+  allMatches: Record<string, Match>;
+  onSimulate: () => void;
+}
 
-export default function RoundMatches() {
-  const dispatch = useAppDispatch();
-
-  const currentRound = useAppSelector(selectCurrentRound) ?? 1;
-  const teamsObj = useAppSelector(selectTeams);
-  const allMatches = useAppSelector(selectMatches);
-
+export default function RoundMatches({ currentRound, teamsObj, allMatches, onSimulate }: RoundMatchesProps) {
   const matchesList = Object.values(allMatches);
 
   // 1. Визначаємо, який тур зараз показувати в блоці результатів (Derived State)
@@ -29,7 +27,7 @@ export default function RoundMatches() {
           📅 Матчі {currentRound}-го туру
         </h3>
         <button
-          onClick={() => dispatch(simulateMatchday())}
+          onClick={onSimulate}
           className="btn-generate-matches"
         >
           🎲 Згенерувати випадкові матчі
