@@ -1,5 +1,6 @@
 import type { LeagueState, Match, Transfer } from "@/shared/types/league";
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { generatePairings, randomScore } from "@/features/league/slices/league.helpers";
 
 export const initialState: LeagueState = {
   teams: {
@@ -127,6 +128,31 @@ const leagueSlice = createSlice({
         fee,
         date: new Date().toISOString(),
       };
+    },
+
+    simulateMatchday(state) {
+      const teamIds = Object.keys(state.teams);
+      if (teamIds.length < 2) return;
+
+      const pairings = generatePairings(teamIds);
+
+      pairings.forEach(([homeTeamId, awayTeamId], index) => {
+        const { homeGoals, awayGoals } = randomScore();
+
+        const matchId = `m-${state.currentRound}-${index}`;
+
+        state.matches[matchId] = {
+          id: matchId,
+          homeTeamId,
+          awayTeamId,
+          homeGoals,
+          awayGoals,
+          round: state.currentRound,
+          scorers: [], // додати пізніше
+        };
+      });
+
+      state.currentRound += 1;
     },
   }
 });
