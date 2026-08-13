@@ -157,6 +157,6 @@ const leagueSlice = createSlice({
   }
 });
 
-export const { nextRound, addMatchResult, transferPlayer } = leagueSlice.actions;
+export const { nextRound, addMatchResult, transferPlayer, simulateMatchday } = leagueSlice.actions;
 
 export default leagueSlice.reducer;

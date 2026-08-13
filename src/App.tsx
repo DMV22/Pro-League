@@ -4,17 +4,13 @@ import { nextRound } from "./features/league/slices/league.slice";
 
 import TeamsList from "./features/league/components/teams-list";
 import DebugPanel from "./features/league/components/debug-panel";
+import RoundMatches from "./features/league/components/round-matches";
 
 function App() {
   const dispatch = useAppDispatch();
 
   const teamsList = useAppSelector(selectTeamsList);
   const currentRound = useAppSelector(selectCurrentRound);
-
-  // Handler для зміни туру (для демонстрації dispatch)
-  const handleNextRound = () => {
-    dispatch(nextRound());
-  };
 
   if (teamsList.length === 0) {
     return <div className="league-container">Команд не знайдено. Перевірте initialState.</div>;
@@ -28,13 +24,15 @@ function App() {
           <p className="league-round"><strong>Поточний тур:</strong> {currentRound ?? 1}</p>
         </div>
         <button
-          onClick={handleNextRound}
+          onClick={() => dispatch(nextRound())}
           className="btn-next-round"
         >
           Наступний тур ➔
         </button>
       </header>
       <TeamsList />
+      {/* НОВИЙ ІНТЕРФЕЙС МАТЧІВ */}
+      <RoundMatches />
       <DebugPanel />
     </main>
   )
