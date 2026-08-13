@@ -1,5 +1,5 @@
-import type { LeagueState, Match } from "@/shared/types/league";
-import { createSlice } from "@reduxjs/toolkit";
+import type { LeagueState, Match, Transfer } from "@/shared/types/league";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 export const initialState: LeagueState = {
   teams: {
@@ -82,10 +82,55 @@ const leagueSlice = createSlice({
       };
 
       // TODO: update standings entries based on this match
-    }
+    },
+
+    transferPlayer(state, action: PayloadAction<Transfer>) {
+      const { playerId, fromTeamId, toTeamId, fee } = action.payload;
+
+      const fromTeam = state.teams[fromTeamId];
+      const toTeam = state.teams[toTeamId];
+
+      if (!fromTeam || !toTeam) {
+        console.warn("transferPlayer: invalid team ids", { fromTeamId, toTeamId });
+        return;
+      }
+
+      const playerIndex = fromTeam.players.findIndex((p) => p.id === playerId);
+      if (playerIndex === -1) {
+        console.warn("transferPlayer: player not found in fromTeam", { playerId, fromTeamId });
+        return;
+      }
+
+      const player = fromTeam.players[playerIndex];
+
+      // Перевірка бюджету (не дозволяємо негативний бюджет)
+      if (toTeam.budget < fee) {
+        console.warn("transferPlayer: insufficient budget", { toTeamId, fee, budget: toTeam.budget });
+        return;
+      }
+
+      // 1. Забираємо гравця з fromTeam
+      fromTeam.players.splice(playerIndex, 1);
+      fromTeam.budget += fee;
+
+      // 2. Додаємо гравця до toTeam
+      toTeam.players.push(player);
+      toTeam.budget -= fee;
+
+      // 3. (Опційно) фіксуємо трансфер в окремому словнику
+      const transferId = `${playerId}-${fromTeamId}-${toTeamId}-${Date.now()}`;
+      state.transfers[transferId] = {
+        id: transferId,
+        fromTeamId,
+        toTeamId,
+        playerId,
+        fee,
+        date: new Date().toISOString(),
+      };
+    },
   }
 });
 
-export const { nextRound, addMatchResult } = leagueSlice.actions;
+export const { nextRound, addMatchResult, transferPlayer } = leagueSlice.actions;
 
 export default leagueSlice.reducer;
