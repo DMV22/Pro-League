@@ -1,11 +1,24 @@
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectStandings, selectFilteredPlayers, selectTeams } from "@/features/league/selectors/league.selectors";
-import type { Player } from "@/shared/types/league";
+import type { Player, UiState } from "@/shared/types/league";
+import { selectStandingsSort } from "@/features/ui/selectors/ui.selectors";
+import { setStandingsSort } from "@/features/ui/slices/ui.slice";
 
 export default function DebugPanel() {
+  const dispatch = useAppDispatch();
+
   const teamsObj = useAppSelector(selectTeams);
   const standingsList = useAppSelector(selectStandings);
   const filteredPlayers = useAppSelector(selectFilteredPlayers);
+  const currentSort = useAppSelector(selectStandingsSort);
+
+  // Конфігурація для кнопок сортування
+  const sortOptions: { value: UiState['standingsSort']; label: string }[] = [
+    { value: 'points', label: '🏆 Очки' },
+    { value: 'goals', label: '⚽ Голи' },
+    { value: 'alphabet', label: '🔤 Алфавіт' },
+    { value: 'form', label: '📈 Форма' },
+  ];
 
   // Функція для стилізації бейджів форми останніх матчів (W, D, L)
   const formClassMap: Record<'W' | 'D' | 'L', string> = {
@@ -29,6 +42,25 @@ export default function DebugPanel() {
         <div className="standings-wrapper">
           <div className="panel-header">
             <h3 className="panel-title">📊 Поточна турнірна таблиця</h3>
+          </div>
+
+          <div className="p-5 pb-0">
+            {/* 2. БЛОК ІНТЕРАКТИВНОГО СОРТУВАННЯ */}
+            <div className="sort-panel">
+              <span className="sort-panel-title">Сортувати за:</span>
+              {sortOptions.map((option) => {
+                const isActive = currentSort === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => dispatch(setStandingsSort(option.value))}
+                    className={`btn-sort ${isActive ? 'btn-sort-active' : ''}`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="table-scroll">

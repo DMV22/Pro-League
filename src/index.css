@@ -226,3 +226,22 @@
 .player-price-badge {
   @apply text-sm font-bold text-gray-900 font-mono;
 }
+
+/* Панель сортування */
+.sort-panel {
+  @apply flex flex-wrap items-center gap-2 mb-4 px-1;
+}
+
+.sort-panel-title {
+  @apply text-xs font-bold uppercase tracking-wider text-gray-400 mr-2;
+}
+
+/* Базова кнопка сортування */
+.btn-sort {
+  @apply px-3 py-1.5 text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-all cursor-pointer;
+}
+
+/* Стан активної кнопки */
+.btn-sort-active {
+  @apply bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:text-white shadow-sm shadow-blue-500/10;
+}
