@@ -1,3 +1,4 @@
+import { selectStandingsSort } from "@/features/ui/selectors/ui.selectors";
 import type { Player, StandingsEntry, Team } from "@/shared/types/league";
 import type { RootState } from "@/store";
 import { createSelector } from "@reduxjs/toolkit";
@@ -10,6 +11,19 @@ export const selectCurrentRound = (state: RootState) => state.league.currentRoun
 
 const selectPlayerFilter = (state: RootState) => state.ui.playerFilter;
 
+function getTeamName(teams: Record<string, Team>, teamId: string): string {
+  return teams[teamId]?.name ?? "";
+}
+
+function formScore(form: StandingsEntry["form"]): number {
+  // Проста модель: W=3, D=1, L=0
+  return form.reduce((acc, result) => {
+    if (result === "W") return acc + 3;
+    if (result === "D") return acc + 1;
+    return acc;
+  }, 0);
+}
+
 export const selectTeamsList = createSelector(
   [selectTeams], // Вхідна залежність
   (teamsObj): Team[] => {
@@ -19,8 +33,8 @@ export const selectTeamsList = createSelector(
 );
 
 export const selectStandings = createSelector(
-  [selectTeams, selectMatches],
-  (teams, matches): StandingsEntry[] => {
+  [selectTeams, selectMatches, selectStandingsSort],
+  (teams, matches, sort): StandingsEntry[] => {
     // 1. Ініціалізуємо standings по кожній команді
     const baseEntries: Record<string, StandingsEntry> = {};
 
@@ -72,11 +86,27 @@ export const selectStandings = createSelector(
     // 3. Повертаємо масив, відсортований за очками (і goalDiff як тайбрейкер)
     const standings = Object.values(baseEntries);
 
-    standings.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
-      return b.goalsFor - a.goalsFor;
-    });
+    switch (sort) {
+      case "goals":
+        standings.sort((a, b) => b.goalsFor - a.goalsFor);
+        break;
+      case "alphabet":
+        standings.sort((a, b) =>
+          getTeamName(teams, a.teamId).localeCompare(getTeamName(teams, b.teamId)),
+        );
+        break;
+      case "form":
+        standings.sort((a, b) => formScore(b.form) - formScore(a.form));
+        break;
+      case "points":
+      default:
+        standings.sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+          return b.goalsFor - a.goalsFor;
+        });
+        break;
+    }
 
     return standings;
   }
