@@ -10,10 +10,17 @@ export default function RoundMatches() {
   const teamsObj = useAppSelector(selectTeams);
   const allMatches = useAppSelector(selectMatches);
 
-  // Фільтруємо загальний масив матчів, залишаючи тільки ті, які належать до ПОТОЧНОГО туру (Derived State)
-  const currentRoundMatches = Object.values(allMatches).filter(
-    (match) => match.round === currentRound
-  );
+  const matchesList = Object.values(allMatches);
+
+  // 1. Визначаємо, який тур зараз показувати в блоці результатів (Derived State)
+  // Шукаємо, чи є матчі для поточного туру
+  const hasMatchesForCurrentRound = matchesList.some(m => m.round === currentRound);
+
+  // Якщо матчів для нового туру немає, а поточний тур > 1, показуємо результати останнього зіграного туру
+  const roundToDisplay = hasMatchesForCurrentRound ? currentRound : (currentRound > 1 ? currentRound - 1 : currentRound);
+
+  // 2. Фільтруємо матчі строго для визначеного туру
+  const roundMatches = matchesList.filter((match) => match.round === roundToDisplay);
 
   return (
     <section className="matches-section">
@@ -29,19 +36,19 @@ export default function RoundMatches() {
         </button>
       </div>
 
-      {currentRoundMatches.length === 0 ? (
+      {roundMatches.length === 0 ? (
         <div className="matches-empty-state">
-          Натисніть кнопку вище, щоб розіграти матчі та згенерувати результати цього туру
+          Чемпіонат ще не розпочався. Натисніть кнопку, щоб симулювати матчі 1-го туру!
         </div>
       ) : (
         <div className="matches-grid">
-          {currentRoundMatches.map((match) => {
-            const homeName = teamsObj[match.homeTeamId]?.name || match.homeTeamId;
-            const awayName = teamsObj[match.awayTeamId]?.name || match.awayTeamId;
+          {roundMatches.map((match) => {
+            const homeName = teamsObj[match.homeTeamId]?.name || `ID: ${match.homeTeamId}`;
+            const awayName = teamsObj[match.awayTeamId]?.name || `ID: ${match.awayTeamId}`;
 
             return (
               <div key={match.id} className="match-score-card">
-                <span className="match-team-name-side text-right truncate">
+                <span className="match-team-side-home">
                   {homeName}
                 </span>
 
@@ -49,7 +56,7 @@ export default function RoundMatches() {
                   {match.homeGoals} : {match.awayGoals}
                 </div>
 
-                <span className="match-team-name-side truncate">
+                <span className="match-team-side-away">
                   {awayName}
                 </span>
               </div>
