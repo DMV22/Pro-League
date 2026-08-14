@@ -4,7 +4,7 @@ import leagueReducer, {
   transferPlayer,
 } from "./league.slice";
 
-describe("leagueSlice Reducers", () => {
+describe("League Reducers", () => {
   // Допоміжна функція для отримання свіжого стану перед кожним тестом
   const getFreshState = () => structuredClone(initialState);
 
