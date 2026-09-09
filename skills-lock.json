@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "setup-matt-pocock-skills": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
+      "computedHash": "a45163cba56f72f5f224c46557c047d51547147a29e383e5a769ec39eecd1188"
+    },
+    "wayfinder": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/wayfinder/SKILL.md",
+      "computedHash": "f53b17850d8d4d68e8b861cfc7de69580335851d7fe7bc3acdf37505f46c9940"
+    }
+  }
+}
