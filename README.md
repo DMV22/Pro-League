@@ -40,13 +40,13 @@ Business rules belong to framework-independent domain and application modules ra
 ## MVP scope
 
 - Multiple Competitions and Seasons whose formats may contain one or more ordered stages.
-- Independent Season sporting lifecycle, public visibility, and Registration Window, with explicit Admin-controlled transitions.
+- Independent Season sporting lifecycle, public visibility, and Team Entry, Roster Registration, and Roster Transfer Windows, with explicit Admin-controlled transitions.
 - A Season sporting lifecycle of Preparing, Active, Completed, Cancelled, or Abandoned, with activation gated by a valid format, approved entries, and a ready opening stage.
 - Overlapping Active Seasons where needed, while each Competition has only one Admin-designated Current Season.
 - Distinct cancellation before the first official Match and abandonment after play has begun, with preserved history and reasons.
 - Explicit Season completion after all stages and federation rulings are finalized, followed by a public historical archive.
 - Exceptional audited reopening of a Completed Season when a later federation decision changes sporting information.
-- Audited reopening of a Season's Registration Window without changing its sporting lifecycle.
+- Audited reopening of a Season's registration windows without changing its sporting lifecycle.
 - League stages, Group Stages, Knockout stages, and Hybrid Formats.
 - One-match and two-leg Knockout Ties, with an optional Third-place Match.
 - Versioned Tie Resolution Rules per Knockout Round, with exceptions requiring a Format Amendment.
@@ -73,8 +73,14 @@ Business rules belong to framework-independent domain and application modules ra
 - Reusable Format Templates for common structures, with editable groups, rounds, Legs, progression rules, and placement matches per Season.
 - Audited Format Amendments when the federation changes an active Season's structure, including adding or removing a Third-place Match.
 - Private validation and explicit atomic publication of Format Amendments, with affected Stage transitions and previous format versions preserved.
-- Teams participating through season-specific entries.
-- Players registered through Season Rosters.
+- External Team applications recorded and decided by the Admin, with approved applications creating season-specific entries whose suspension, withdrawal, or disqualification preserves history.
+- Independently approved Player registrations represented by persistent identities and collected into Season Rosters without permanent or season-wide shirt numbers.
+- Regulation-defined Roster Transfer Windows for non-overlapping, effective-dated Team changes within a Season, without commercial transfer-market data.
+- Admin-assigned season-specific Legionnaire classification, Team roster quotas, and optional allowances configured from Player birth-date cutoffs.
+- Blocked out-of-window or over-quota registrations unless the federation records an audited Roster Eligibility Ruling.
+- Configurable minimum and maximum Season Roster sizes, with the minimum required before a Team is ready for competition.
+- Private application and eligibility documents, public verification outcomes, and privacy-preserving Player profiles that hide exact birth dates by default.
+- Manual, audited duplicate Player merges and versioned roster rules whose changes trigger review rather than silently cancelling registrations.
 - Matches generated from Competition Formats or entered manually by an Admin and validated against the Stage structure.
 - Manually entered official Matches linked to valid Fixture Slots; additions outside an Active format require a Format Amendment.
 - Fixture Rounds as structural groups whose Matches may occur on different days and at different times.
