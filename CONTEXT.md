@@ -133,20 +133,104 @@ A Competition Stage that partitions participants into groups, produces separate 
 _Avoid_: League Format when the grouping and advancement phase is meant
 
 **Knockout Tie**:
-A pairing between two Teams in a Knockout Format, resolved by either one Match or the aggregate outcome of two Legs.
+A pairing between two Season Entries in a Knockout Format, resolved by either one Match or the aggregate outcome of two Legs under the round's Tie Resolution Rules.
 _Avoid_: Match when referring to the complete two-leg pairing
 
+**Knockout Round**:
+A set of Knockout Ties that share the same Tie Resolution Rules, Draw Constraints, and progression destinations. A rule exception for one Tie requires a Format Amendment.
+_Avoid_: Competition Stage, Matchday
+
+**Fixed Bracket**:
+A Knockout progression structure whose future source slots and pairings are approved before their specific Season Entries are known.
+_Avoid_: Draw Outcome, Redraw Each Round
+
+**Redraw Each Round**:
+A Knockout progression structure in which a new external federation Draw determines pairings after the preceding Knockout Round is Finalized.
+_Avoid_: Fixed Bracket, automatic random pairing
+
+**Tie Resolution Rules**:
+The versioned rules by which every Knockout Tie in one Knockout Round determines its winner. A one-match Tie defaults to a Penalty Shootout immediately after a drawn Regulation Score, while extra time or a Replay Match may be selected explicitly; a two-leg Tie uses Aggregate Score and proceeds directly to a Penalty Shootout when level, without extra time or an away-goals rule.
+_Avoid_: Ranking Rules, globally fixed cup rules
+
+**Configured Tie**:
+A Knockout Tie whose source slots and Tie Resolution Rules are defined even if its specific Season Entries are not yet known.
+_Avoid_: Ready Tie
+
+**Ready Tie**:
+A Configured Tie whose two participating Season Entries are known and whose required Matches may be scheduled or played.
+_Avoid_: Configured Tie, Finalized Tie
+
+**In-progress Tie**:
+A Knockout Tie in which at least one required Match has begun but the sporting outcome is not yet ready for final review.
+_Avoid_: Finished Match, Finalized Tie
+
+**Tie Awaiting Finalization**:
+A Knockout Tie with a determined provisional winner but with explicit Admin finalization or an applicable Result Ruling still outstanding.
+_Avoid_: Finalized Tie
+
+**Suspended Tie**:
+A Ready or In-progress Tie that the federation has temporarily prevented from continuing. Suspension blocks another Match and Tie finalization while preserving played results; both suspension and resumption require a reason and Audit History.
+_Avoid_: Cancelled Match, Abandoned Stage
+
 **Finalized Tie**:
-A Knockout Tie whose advancing Team an Admin has explicitly confirmed after all applicable Match Results and Result Rulings are settled. Time passing does not finalize a tie; only a Finalized Tie may supply a participant to a dependent Knockout Match.
+A Knockout Tie whose winner and progression output an Admin has explicitly confirmed after all applicable Match Results, Result Rulings, and Tie Rulings are settled. Time passing does not finalize a Tie; only a Finalized Tie may supply a participant to a dependent Knockout Match.
 _Avoid_: Finished Match, provisional winner
+
+**Tie Ruling**:
+A final federation decision that determines or changes the winner of a Knockout Tie without assigning a score to a specific Match. A later ruling supersedes rather than edits an earlier ruling and records the reason, responsible Admin, decision date, supporting reference, and decision history; changing a Finalized Tie requires reopening it.
+_Avoid_: Technical Result, fabricated Match score
 
 **Leg**:
 One Match within a two-match Knockout Tie.
 _Avoid_: Round, Knockout Tie
 
+**Aggregate Score**:
+The combined current official Match Results of both Legs in a two-leg Tie. It uses a Technical Result when that result supersedes a Played Score and excludes every Penalty Shootout; a Tie Ruling may supersede the winner calculated from the aggregate.
+_Avoid_: Sum of Played Scores when a Result Ruling applies, Penalty Shootout total
+
+**Regulation Score**:
+The goals scored during a Match's regulation playing time.
+_Avoid_: Played Score when extra time occurred, Penalty Shootout
+
+**Extra-time Score**:
+The goals scored during an explicitly configured period of extra time in a one-match Knockout Tie or its Replay Match.
+_Avoid_: Regulation Score, Penalty Shootout
+
+**Penalty Shootout**:
+A separate outcome attached to the decisive Match: the sole Match of a one-match Tie, the second Leg, or a Replay Match. It records each Season Entry's successful-kick total and winner, but its kicks do not contribute to the Played Score, Aggregate Score, Standings, or goal statistics and are absent when a Technical Result or Tie Ruling already determines the winner.
+_Avoid_: Played Score, extra-time goals
+
+**Replay Match**:
+The single additional Match permitted by explicitly configured one-match Tie Resolution Rules after the original Match remains level. Its home order follows those rules; if it also remains level, the default resolution is an immediate Penalty Shootout unless extra time was explicitly enabled.
+_Avoid_: Second Leg, rescheduled Match
+
+**Bye**:
+An approved direct progression from one Qualification Slot to a destination slot without a Match, Technical Result, or fictional score. It is explicitly confirmed in the Competition Format or Draw Outcome.
+_Avoid_: Cancelled Match, Technical Result
+
+**Confirmed Bye**:
+A Bye explicitly approved by an Admin as a progression output. It fills its destination slot without creating or finalizing a Knockout Tie; every Bye in a Knockout Stage must be confirmed before Stage finalization.
+_Avoid_: Finalized Tie, automatic Match winner
+
+**Draw Outcome**:
+The recorded result of an external federation draw that assigns Season Entries or unresolved source slots to Knockout Ties, bracket positions, and home or away order. It preserves the draw date, applicable Draw Constraints, responsible Admin, and any supporting reference; ProLeague validates but does not randomly generate it.
+_Avoid_: Platform-generated random draw, Match schedule
+
+**Draw Constraints**:
+The published conditions against which a Draw Outcome is validated, including seeded and unseeded pots, open draws, prohibited pairings, fixed bracket slots, and home or away assignment rules.
+_Avoid_: Draw Outcome, informal pairing preference
+
 **Third-place Match**:
-An optional placement Match between the losing semi-finalists that determines third and fourth place.
+A one-match Knockout Tie between the losing semi-finalists that determines third and fourth place under its own Tie Resolution Rules and produces no advancing participant.
 _Avoid_: Final
+
+**Placement Output**:
+The final placements created only when the relevant Tie is Finalized. A Final produces Champion and Runner-up, while a Third-place Match produces third and fourth places; neither supplies an advancing participant to another Knockout Round.
+_Avoid_: Provisional Match winner, Qualification Output
+
+**Final Knockout Snapshot**:
+The immutable record produced when an Admin finalizes a Knockout Stage. It captures the bracket, Draw Outcomes, Finalized Ties, Confirmed Byes, applicable rulings, progression outputs, and Placement Outputs that determined the completed structure.
+_Avoid_: Editable bracket, provisional Draw Outcome
 
 **Hybrid Format**:
 A Competition Format that combines multiple ordered Competition Stages, such as a Group Stage followed by a Knockout Stage.

@@ -49,6 +49,26 @@ Business rules belong to framework-independent domain and application modules ra
 - Audited reopening of a Season's Registration Window without changing its sporting lifecycle.
 - League stages, Group Stages, Knockout stages, and Hybrid Formats.
 - One-match and two-leg Knockout Ties, with an optional Third-place Match.
+- Versioned Tie Resolution Rules per Knockout Round, with exceptions requiring a Format Amendment.
+- Direct Penalty Shootout as the default resolution of a drawn one-match Tie, with explicitly configured extra time or Replay Match as optional alternatives.
+- Two-leg Ties decided by Aggregate Score and then a direct Penalty Shootout, without extra time or an away-goals rule.
+- Separate Regulation, extra-time, Played Score, and Penalty Shootout values so shootout kicks never affect aggregate or goal statistics.
+- Byes that advance Qualification Slots without fictional Matches or Technical Results.
+- External federation draws recorded as validated Draw Outcomes with pots, pairing constraints, bracket slots, and explicit home or away order.
+- Fixed brackets and redraw-after-each-round progression, including unresolved source slots published before their Season Entries are known.
+- Knockout Ties progressing through Configured, Ready, In Progress, Awaiting Finalization, and explicitly Finalized states.
+- Penalty Shootout summaries that store only successful-kick totals and winner.
+- At most one optional Replay Match for a one-match Tie, with immediate penalties as its default draw resolution.
+- Audited Tie Rulings that determine advancement without inventing a Match score.
+- Superseding Tie Rulings and explicit reopening when a later federation decision changes a Finalized Tie.
+- Independent Tie suspension that blocks further play and finalization while preserving completed Match Results.
+- Aggregate Scores derived from current official Match Results, including applicable Technical Results and excluding Penalty Shootouts.
+- Confirmed Byes that fill destination slots without creating fictional or Finalized Ties.
+- Supersedable Draw Outcomes before play, while post-start redraws require a Format Amendment and federation decision.
+- Finals and Third-place Matches modeled as one-match Ties with placement outputs rather than advancing participants.
+- Placement Outputs created only when a Final or Third-place Match is explicitly Finalized.
+- Knockout Stage finalization gated by completed Ties, confirmed Byes, settled rulings, valid outputs, and no suspended or missing slots.
+- Immutable Final Knockout Snapshots preserving the bracket, Draw Outcomes, Byes, rulings, and outputs used at finalization.
 - Multiple valid format configurations for the same Team count, with the federation's approved format selected and configured by the Admin.
 - Reusable Format Templates for common structures, with editable groups, rounds, Legs, progression rules, and placement matches per Season.
 - Audited Format Amendments when the federation changes an active Season's structure, including adding or removing a Third-place Match.
