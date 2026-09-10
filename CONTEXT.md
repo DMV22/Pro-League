@@ -301,20 +301,72 @@ A person who reads Published News Articles and other public Official information
 _Avoid_: User when no authenticated public identity exists
 
 **News Article**:
-A dated publication through which the federation communicates news about its Competitions and related activity. It may be explicitly associated with multiple Competitions, Seasons, and Teams; a textual mention alone does not create an association.
+A Ukrainian-language publication through which the federation communicates news, announcements, and decisions about its Competitions and related activity. It has a category, title, stable slug, summary, body, cover image, responsible Admin, immutable first-publication time, and optional SEO metadata. It may be explicitly associated with multiple Competitions, Seasons, Teams, Matches, and Players; a textual mention alone does not create an association, and an association with a Private entity is publicly linked only after that entity becomes Public.
 _Avoid_: Post, blog post, announcement as a catch-all term
 
+**Article Category**:
+A required Admin-managed classification used to organize News Articles without introducing separate editorial lifecycles. News, Announcement, and Federation Decision are the initial categories; a used category may be renamed or archived but not deleted.
+_Avoid_: Separate publication type, free-text tag
+
+**Article Content Document**:
+The structured body of a News Article composed only of supported semantic content such as paragraphs, second- and third-level headings, emphasis, lists, links, quotations, tables, Article Media Placements, and Embedded Videos. The same document determines both Admin preview and public presentation.
+_Avoid_: Arbitrary HTML, presentation-specific markup, plain-text body
+
 **Draft**:
-A News Article that an Admin has saved but not made publicly accessible.
+A News Article that an Admin has saved but not made publicly accessible. An authenticated Admin may preview its current presentation; public preview links are outside the MVP. Physical deletion is limited to a Draft that has never been Published.
 _Avoid_: Unpublished Official information
 
+**Scheduled Article**:
+A News Article configured to become Published automatically at a future time in the Portal's `Europe/Kyiv` timezone. The Admin may continue editing the latest saved version, reschedule it, or return it to Draft before publication. Readiness is checked both when scheduling and when publication is attempted; a failed attempt never exposes partial or invalid content.
+_Avoid_: Published, manually queued article
+
 **Published**:
-A News Article that an Admin has made publicly accessible as Official information.
+A News Article that an Admin has made publicly accessible as Official information, either manually or through its publication schedule. It cannot return to Draft; hiding it from current content requires archival.
 _Avoid_: Approved, live
 
 **Archived**:
-A previously Published News Article that is retained by ProLeague but no longer appears as current public content.
+A previously Published News Article removed from current feeds while remaining available through its stable URL and archive search. It may be restored to Published without changing its first-publication time or being treated as a new publication.
 _Avoid_: Deleted, Draft
+
+**Article Revision**:
+A preserved version of a News Article's editorial content and associations after first publication. The current Published Revision remains public while its replacement is prepared as a Working Revision; applying the replacement is an explicit Admin action with an internal reason. Ordinary typographical edits are retained internally, while a material factual change is marked as an Article Correction.
+_Avoid_: Silent overwrite, Draft autosave
+
+**Working Revision**:
+An unpublished replacement being prepared for a currently Published News Article. It may be previewed and recovered without changing the public version, and becomes current only through explicit publication; scheduling a future replacement is outside the MVP.
+_Avoid_: Draft Article, current Published Revision
+
+**Article Correction**:
+A material Article Revision that includes a public explanation and marks the News Article as updated without replacing its original publication date.
+_Avoid_: Typographical edit, unpublished Draft revision
+
+**Draft Recovery Snapshot**:
+A recent server-side recovery point for a Draft or Working Revision. It protects unfinished work without becoming an Article Revision or an audit event for every individual edit; a browser copy, if present, is temporary and never authoritative.
+_Avoid_: Published Revision, browser-persisted Official information
+
+**Media Asset**:
+An immutable uploaded image that may be reused by multiple News Articles. It records its original filename, media type, byte size, dimensions, source, creator, usage-rights information, responsible Admin, and upload time. Replacing its binary content creates a new Media Asset so published revisions do not change silently.
+_Avoid_: Article-specific caption, mutable file, video upload
+
+**Article Media Placement**:
+A cover or inline use of a Media Asset in one News Article. It may override the asset's default alternative text and caption for that context; a meaningful placement requires alternative text, while an empty value is valid only when explicitly marked decorative.
+_Avoid_: Media Asset, unattributed file
+
+**Media Withdrawal**:
+An audited removal of a previously published Media Asset from public display, such as for a usage-rights violation. Public placements receive a neutral replacement while the asset metadata, reason, responsible Admin, and historical references remain preserved.
+_Avoid_: Physical deletion, ordinary removal from an Article
+
+**Embedded Video**:
+A validated YouTube reference placed in a News Article without uploading or accepting arbitrary iframe markup.
+_Avoid_: Uploaded video, arbitrary HTML embed
+
+**Article Publication Readiness**:
+The requirement that a News Article have a title, unique slug, summary, non-empty body, active Article Category, cover placement, and valid accessibility classification for every image before it may become Scheduled or Published. Domain associations are optional for general federation news.
+_Avoid_: Editorial approval role, association requirement
+
+**Featured Article**:
+A Published News Article explicitly promoted in a prominent public feed, optionally until a configured time. Multiple Articles may be Featured concurrently; a public surface selects the newest applicable items by feature time, while ordinary feed order continues to use publication time rather than arbitrary manual ordering.
+_Avoid_: Pinned sort order for every article
 
 **Correction**:
 A replacement of previously published Official information that preserves the earlier value together with who changed it and when. The corrected value becomes the current public version.
