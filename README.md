@@ -69,6 +69,19 @@ Business rules belong to framework-independent domain and application modules ra
 - Removal of an unstarted Stage and abandonment of a started Stage as distinct, history-preserving Format Amendment outcomes.
 - Admin-controlled lifecycle transitions; dates and completed Matches produce reminders and readiness signals, never automatic state changes.
 - Standings derived from confirmed results and explicit federation adjustments.
+- Versioned Ranking Rules per League or Group Stage, with a configurable win/draw/loss Points Scheme defaulting to `3/1/0`.
+- Ordered configurable Tie-breakers, including overall, head-to-head, away-goal, fair-play, Playoff Match, and final federation ruling criteria.
+- Recursive head-to-head mini-tables, provisional shared positions, and explicit unresolved-tie gates before Stage finalization.
+- Configurable Match-level card weights for Fair-play Score without requiring detailed Player event statistics.
+- Audited corrections to Match-level Disciplinary Summaries with recalculation and reopening when sporting outcomes change.
+- Playoff Matches that settle tied positions without contributing points or goals to the main Standings.
+- Declarative qualification by configured positions, per-group places, cross-group ranking, named destination slots, seeding, and byes.
+- Audited Qualification Rulings that preserve calculated Standings when an ineligible participant must be replaced, left vacant, or converted to a bye.
+- Configurable cross-group comparison using all Matches, exclusion of results against lowest-ranked participants, or exact per-Match ratios.
+- Reasoned Standing Adjustments that add or deduct points without directly editing calculated Match totals or positions.
+- Cumulative, revocable, and supersedable Standing Adjustments whose previous decisions remain immutable.
+- Immutable Final Standings Snapshots and Qualification Outputs produced by explicit Stage finalization.
+- Validation that every active Stage has a complete Tie-breaker chain and valid Qualification Slots.
 - News Articles with Draft, Published, Archived, and correction history.
 - Associations between News Articles and multiple Competitions, Seasons, and Teams.
 - Audit history for corrections to published Official information.

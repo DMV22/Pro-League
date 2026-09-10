@@ -237,9 +237,69 @@ A Match whose Match Result has been confirmed by an Admin and is current Officia
 _Avoid_: Played Match when the result has not been confirmed
 
 **Standings**:
-The ordered positions of participants in a league-format Season, derived from confirmed Finished Matches and applicable Standing Adjustments.
+The ordered positions of Season Entries within a League Stage or one group of a Group Stage, derived from confirmed Finished Matches, the Stage's Ranking Rules, and applicable Standing Adjustments.
 _Avoid_: Manually maintained table
 
+**Provisional Standings**:
+Standings calculated while a Competition Stage is not Finalized. They may show shared positions and unresolved ties when required Matches, Result Rulings, Playoff Matches, or Ranking Rulings remain outstanding.
+_Avoid_: Final Standings, prediction
+
+**Final Standings Snapshot**:
+The immutable record produced when an Admin finalizes a League or Group Stage. It captures the final positions and the Match Results, Standing Adjustments, Ranking Rules, and Ranking Rulings that determined them; it is historical evidence rather than an editable Standings table.
+_Avoid_: Manually maintained table, current Provisional Standings
+
+**Ranking Rules**:
+The versioned sporting rules by which a League or Group Stage derives and orders its Standings. Each Stage owns its Points Scheme, ordered Tie-breakers, and Qualification Rules; a Format Template may provide initial values, but rules are not global platform settings. Before activation, the rules must have a complete Tie-breaker chain ending in a Playoff Match or Ranking Ruling and valid Qualification Slots.
+_Avoid_: UI sorting, global league settings
+
+**Points Scheme**:
+The points awarded for a win, draw, and loss in one League or Group Stage. New Stages default to three points for a win, one for a draw, and zero for a loss, but the Admin may configure those values before activation; bonus and penalty-shootout points are outside the MVP.
+_Avoid_: Standing Adjustment, hard-coded points
+
+**Tie-breaker**:
+One criterion in the ordered list used to separate participants with equal points in Standings. Supported criteria include overall goal difference, overall goals scored, overall away goals, wins, head-to-head points, head-to-head goal difference, head-to-head goals scored, head-to-head away goals, Fair-play Score, a Playoff Match, and a Ranking Ruling; alphabetical order is only a display aid.
+_Avoid_: UI sort, arbitrary Admin ordering
+
+**Head-to-head Mini-table**:
+Standings derived only from Finished Matches between Season Entries that remain tied at the relevant Tie-breaker. When part of a multi-participant tie is resolved, the configured head-to-head criteria restart for the smaller set that remains tied; an incomplete mini-table leaves the affected positions provisional.
+_Avoid_: Overall Standings, direct-match display
+
+**Fair-play Score**:
+A Tie-breaker derived from configurable penalty weights applied to a Season Entry's Match-level counts of yellow cards, second-yellow dismissals, and direct red cards. It does not require detailed Player event statistics.
+_Avoid_: Standing Adjustment, detailed Player statistics
+
+**Disciplinary Summary**:
+The Match-level card totals recorded for one Season Entry and used to derive its Fair-play Score. A Correction preserves the previous totals and recalculates affected Standings; after Stage finalization, a correction that changes position or qualification requires reopening the Stage.
+_Avoid_: Detailed Player events, Standing Adjustment
+
+**Playoff Match**:
+A Match within a League or Group Stage that resolves the order of specified tied Season Entries without contributing points or goals to the main Standings. The Stage cannot be Finalized until the Match has a Finished Match Result.
+_Avoid_: Scheduled league Match, Knockout Tie
+
+**Qualification Rule**:
+A rule that derives participants advancing from a Finalized League or Group Stage using configured positions, a number of qualifiers per group or table, cross-group ranking, and named Qualification Slots in their destination Stage or round. A bye may be part of the destination structure, but an Admin does not manually select a Team while the rules determine it unambiguously.
+_Avoid_: Manually selected advancing Team
+
+**Qualification Slot**:
+A named place in a destination Stage or round filled by a specific Qualification Rule, such as the winner of Group A entering the home position of Quarter-final 1. Slots make bracket placement, seeding, and byes part of the approved Competition Format rather than later Admin discretion.
+_Avoid_: Unordered qualifier list, manually assigned bracket place
+
+**Qualification Output**:
+The set of Season Entries and byes assigned to Qualification Slots from a Finalized Stage. A later sporting decision that reopens the Stage supersedes its prior Final Standings Snapshot and Qualification Output; recalculation does not silently alter an already Active dependent Stage.
+_Avoid_: Provisional qualifier list, silently changed bracket
+
+**Qualification Ruling**:
+A federation decision recorded after a sporting position has been calculated when a Season Entry is not permitted to advance. It preserves the calculated Standings and explicitly records the ineligible participant, reason, responsible Admin, supporting reference, and whether the outcome is a replacement participant, vacant place, or bye.
+_Avoid_: Hidden Standings change, automatic replacement
+
+**Cross-group Comparison Rule**:
+The method used to compare participants holding specified positions in different groups. It defines whether to use all Matches, exclude enough lowest-participant Matches to equalize compared Match counts, or compare unrounded ratios of points, goal difference, and goals scored per Match, followed by its own ordered Tie-breakers; every group in one Group Stage shares its base Ranking Rules.
+_Avoid_: Combining group Standings into one table
+
+**Ranking Ruling**:
+A final federation decision that orders participants whose position cannot be resolved by the preceding Tie-breakers. It is recorded by an Admin with a mandatory reason and history rather than being inferred from alphabetical order.
+_Avoid_: Manual Standings edit, UI sort
+
 **Standing Adjustment**:
-A federation decision that changes a participant's calculated standing independently of a Match Result and records a mandatory reason.
+A federation decision that adds or deducts points from a participant independently of a Match Result. Active adjustments apply cumulatively; a later decision may revoke or replace an earlier one but never edit or delete it. Every decision records a mandatory reason, effective date, responsible Admin, and history and cannot directly edit Match totals, goals, wins, or a participant's position.
 _Avoid_: Manual points edit, Match Result correction
