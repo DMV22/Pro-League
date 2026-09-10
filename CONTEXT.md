@@ -21,7 +21,7 @@ A time-bounded edition of a Competition. A Competition may have multiple Seasons
 _Avoid_: Competition, current league
 
 **Season Sporting State**:
-The sporting phase of a Season: Preparing, Active, Completed, Cancelled, or Abandoned. It is independent of the Season's public visibility, Registration Window, Current Season designation, and archival status.
+The sporting phase of a Season: Preparing, Active, Completed, Cancelled, or Abandoned. It is independent of the Season's public visibility, registration windows, Current Season designation, and archival status.
 _Avoid_: Using one status for every aspect of a Season
 
 **Preparing Season**:
@@ -64,9 +64,17 @@ _Avoid_: Draft Season
 A Season whose published information is accessible to Visitors. Public visibility is independent of the Season Sporting State.
 _Avoid_: Active Season
 
-**Registration Window**:
-The independently controlled period during which new Season Entries may be submitted or created. The Admin may close or reopen it without changing the Season Sporting State; reopening requires a recorded reason.
-_Avoid_: Season Sporting State
+**Team Entry Window**:
+The independently controlled period during which Team applications for a Season may be recorded and decided. The Admin may close or reopen it without changing the Season Sporting State; reopening requires a recorded reason.
+_Avoid_: Roster Registration Window, Season Sporting State
+
+**Roster Registration Window**:
+The independently controlled period during which Players may be registered in a Season Roster. Its dates and exceptional reopening are governed by the Competition Season's regulations and do not change the Season Sporting State.
+_Avoid_: Team Entry Window, Roster Transfer Window
+
+**Roster Transfer Window**:
+A regulation-defined period, commonly between competition rounds but configurable for another interval, during which a Player may end one active Roster Entry and begin another for a different Team in the same Season. It records a sporting registration change only, without contracts, fees, budgets, or market values.
+_Avoid_: Transfer market, Roster Registration Window
 
 **Competition Format**:
 The complete sporting structure selected for a Season to determine its schedule and progression. It consists of one or more ordered Competition Stages, may combine different Stage Formats, and is not uniquely determined by the number of participating Teams.
@@ -240,21 +248,49 @@ _Avoid_: Group Stage, Knockout Format
 A football side that can participate in one or more Competition Seasons, including different Competitions during the same period.
 _Avoid_: Season Entry, Club unless a separate club concept is explicitly introduced
 
+**Season Application**:
+An external Team request to participate in one Competition Season that the Admin records with its submission date, private supporting documents, and configurable approval checklist. It proceeds through Recorded, Under Review, Approved, Rejected, or Withdrawn; only approval creates a Season Entry. A mistaken decision is replaced by a reasoned, audited decision rather than rewritten, and Admin-initiated entries use the same lifecycle.
+_Avoid_: Season Entry, Team account
+
 **Season Entry**:
-A Team's registered participation in one specific Competition Season. Season-specific sporting data belongs to the Season Entry rather than duplicating the Team.
+A Team's registered participation in one specific Competition Season, created from an Approved Season Application. Its participation state is Registered, Suspended, Withdrawn, or Disqualified, while season-specific sporting data belongs to it rather than duplicating the Team. Suspension preserves its roster but blocks new official Match participation until reinstatement.
 _Avoid_: Team, permanent membership
+
+**Season Entry Withdrawal**:
+The preserved end of a Team's voluntary participation. Before its first official Match, removal from the format requires a Format Amendment; after play begins, existing results remain and the federation records the applicable sporting consequences rather than deleting the Season Entry.
+_Avoid_: Season Application withdrawal, deleted Team
 
 **Player**:
 A person who may be registered to represent Teams across different Competition Seasons. The launch profile contains only the identity and public sporting details needed for Season Rosters.
 _Avoid_: Roster Entry, transfer asset
 
+**Player Identity**:
+The persistent federation record used to recognize the same Player across Seasons, Competitions, and Teams. Full name and date of birth are required; federation identifier and photo are optional. Exact birth date is restricted to the Admin by default, while public presentation uses birth year or calculated age. The Admin searches before creating a record; suspected duplicates are warned about and may only be merged manually with preserved references and Audit History.
+_Avoid_: Roster Entry, automatically merged person
+
 **Season Roster**:
-The complete set of Players registered for one Season Entry.
+The complete set of Players registered for one Season Entry, derived from that entry's Active Roster Entries. Configurable minimum and maximum sizes govern readiness and further registration, with exceptions requiring a Roster Eligibility Ruling.
 _Avoid_: Permanent squad, transfer list
 
 **Roster Entry**:
-A Player's registration in a Season Roster, including the playing position and shirt number applicable to that registration.
-_Avoid_: Player, contract, transfer
+A Player's season-specific registration in one Season Roster, including the playing position applicable to that registration. It proceeds through Pending, Active, Rejected, or Ended and is approved independently from other registrations. Shirt numbers are not properties of the Player or Roster Entry because they may vary by Match.
+_Avoid_: Player, contract, permanent shirt number
+
+**Roster Transfer**:
+The effective-dated change that ends a Player's active Roster Entry for one Team and creates one for another Team in the same Season during a Roster Transfer Window. The registrations may not overlap, and the Player's earlier Match participation remains attributed to the former Team.
+_Avoid_: Player sale, contract, transfer fee
+
+**Legionnaire Classification**:
+A manual, Season-specific classification of a Roster Entry as Local or Legionnaire under the applicable district rules. The Admin records the classification and, where needed, its basis; the system does not infer it from an address, nationality, or other Player data.
+_Avoid_: Nationality, permanent Player category
+
+**Legionnaire Quota**:
+A Competition Season rule limiting Active Legionnaire Roster Entries for each Team. It defines a base limit and may define an additional allowance using the Player's date of birth, such as allowing Players born on or before `1991-12-31` when the regulation covers everyone who turns 35 during 2026; neither the limit nor the birth-date cutoff is hard-coded.
+_Avoid_: Match-only quota, hard-coded age or birth year
+
+**Roster Eligibility Ruling**:
+An audited federation exception that permits a Roster Entry which would otherwise be blocked by a closed registration window, roster-size rule, Legionnaire Quota, or another eligibility condition. It records the Admin, reason, effective period, and supporting reference without silently changing the configured rule. Typographical or identity-data mistakes use a Correction instead.
+_Avoid_: Qualification Ruling, unchecked Admin override
 
 **Admin**:
 An authenticated federation representative authorized to create, edit, and publish Official information. At launch, ProLeague has one authorized role rather than separate editorial and publishing roles.
