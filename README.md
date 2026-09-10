@@ -75,7 +75,30 @@ Business rules belong to framework-independent domain and application modules ra
 - Private validation and explicit atomic publication of Format Amendments, with affected Stage transitions and previous format versions preserved.
 - Teams participating through season-specific entries.
 - Players registered through Season Rosters.
-- Matches with Scheduled, Postponed, Cancelled, and Finished states.
+- Matches generated from Competition Formats or entered manually by an Admin and validated against the Stage structure.
+- Manually entered official Matches linked to valid Fixture Slots; additions outside an Active format require a Format Amendment.
+- Fixture Rounds as structural groups whose Matches may occur on different days and at different times.
+- Independent Match sporting state and Private or Public visibility, including Unscheduled, Scheduled, Postponed, In Progress, Finished, and Cancelled states.
+- Season-default IANA timezone with Match-level override and separately supported date TBD and time TBD schedules.
+- Scheduled Kickoff as the authoritative published time, with optional Actual Kickoff for relevant ceremonies or delays and no required Actual End.
+- Reusable Venues with locality, address, optional coordinates, and Venue TBD.
+- Reusable Playing Fields within a Venue so distinct fields may host Matches concurrently.
+- Explicit home, away, or neutral Venue Designation while every Match retains Home and Away participant roles.
+- Home Matches remaining home when moved to an alternate Venue or Playing Field; only explicit federation designation makes a Match neutral.
+- Single or double round-robin generation with a Rest Slot for the resting participant, localized as `Вихідна` in the Ukrainian UI, plus Home/Away balancing, optional date proposals, and explicit Admin confirmation.
+- Publication by Match, Fixture Round, Knockout Round, or Stage with preserved Schedule Revisions.
+- Schedule validation for participant overlap, source finalization, and format consistency, plus reasoned overrides for rest and Venue timing warnings.
+- Multiple Matches on the same playing field and day when their occupancy intervals and configured turnaround time do not overlap.
+- Field Occupancy Windows derived from Scheduled Kickoff, expected duration, and turnaround rather than a required Actual End.
+- Explicit Match state transitions, including Suspended Match for play that began but awaits a federation decision.
+- Mandatory internal reasons and optional public explanations for published Schedule Revisions, postponements, cancellations, and suspensions.
+- Regeneration only before first publication; later changes use Schedule Revisions or a Format Amendment.
+- Schedule Revisions for kickoff, Venue, Playing Field, or Home/Away changes, while structural fixture changes after Stage activation require a Format Amendment.
+- Suspended Matches that can resume as the same Match, finish by ruling, or produce a separately linked Replacement Match.
+- Physical deletion limited to unpublished, unstarted, dependency-free Private Matches.
+- Partial schedule publication with Public TBD fixtures while later rounds remain Private.
+- Historical Venue and Playing Field details preserved through Schedule Revisions rather than rewritten by later venue changes.
+- Downloadable read-only iCalendar exports for Public Competition or Season schedules, with stable events across changes and explicit cancellation.
 - Match Results entered and confirmed manually by an Admin.
 - Played Scores preserved separately from federation-assigned Technical Results, with the current official Match Result driving progression and Standings.
 - Final federation rulings recorded by the Admin, while protest submission and review remain outside the platform.
