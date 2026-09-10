@@ -285,8 +285,72 @@ A replacement of previously published Official information that preserves the ea
 _Avoid_: Silent edit, deletion, Result Ruling when the federation changes its decision
 
 **Match**:
-A scheduled football contest between two Teams within a Competition Season.
+A football contest between two Season Entries within a Competition Stage. It may be generated from the Competition Format or entered manually by an Admin, but it must remain valid for that Stage's approved structure.
 _Avoid_: Pairing, simulated game
+
+**Fixture Slot**:
+A place for one official Match in a Competition Stage's approved structure, such as a pairing in a Fixture Round, Knockout Tie, Replay, or Playoff. A manually entered Match must fill a valid Fixture Slot; adding another official Match to an Active format requires a Format Amendment.
+_Avoid_: Friendly Match, arbitrary calendar entry
+
+**Fixture Round**:
+A structural group of Matches in a League or Group Stage. Its Matches may have different dates and kickoff times and may be spread across multiple calendar days.
+_Avoid_: Calendar day, Knockout Round
+
+**Rest Slot**:
+A scheduling position for a Season Entry that has no Match in one Fixture Round because the Stage has an odd number of participants. It is never a Knockout Bye or progression outcome and may be presented with a localized UI label such as `Вихідна`.
+_Avoid_: Bye, Cancelled Match
+
+**Unscheduled Match**:
+A Match whose participants or structural slots exist but whose kickoff has not been confirmed. It may remain private or be published with its date, time, or both marked as TBD.
+_Avoid_: Postponed Match
+
+**Private Match**:
+A Match visible only to the Admin while its sporting and scheduling information is prepared. Visibility is independent of Match Sporting State.
+_Avoid_: Unscheduled Match
+
+**Public Match**:
+A Match whose current published schedule and sporting information are accessible to Visitors. Visibility is independent of Match Sporting State.
+_Avoid_: Scheduled Match
+
+**Match Sporting State**:
+The explicitly controlled sporting state of a Match: Unscheduled, Scheduled, Postponed, In Progress, Suspended, Finished, or Cancelled. Calendar time and score entry do not change it automatically.
+_Avoid_: Match visibility, calendar status
+
+**Scheduled Kickoff**:
+The announced start of a Match, expressed as a local date and time in the Season's timezone or an explicitly overridden Match timezone. Its date, time, or both may remain TBD until confirmed.
+_Avoid_: Fixture Round date, publication time
+
+**Actual Kickoff**:
+An optional record of when a Match actually began when a ceremony, delay, or other circumstance makes that fact relevant. It does not replace the Scheduled Kickoff, and the MVP does not require an actual end time.
+_Avoid_: Schedule Revision, required Match duration
+
+**Venue**:
+A reusable place where Matches may be played, identified by name, locality, address, and optional coordinates. A Match may temporarily use Venue TBD.
+_Avoid_: Home Team, Match address text
+
+**Playing Field**:
+A specific field within a Venue. A Venue may contain one default field or several fields that can host Matches independently and, when distinct, concurrently.
+_Avoid_: Venue, Home field designation
+
+**Field Occupancy Window**:
+The planned period for which a Playing Field is reserved for a Match, beginning at Scheduled Kickoff and including the expected Match duration and configured turnaround. Multiple Matches may use the same field on one day when their occupancy windows do not overlap.
+_Avoid_: Actual Match duration, whole-day Venue booking
+
+**Venue Designation**:
+The Match's classification as home, away, or neutral independently of its Home and Away participant roles. A Home Match remains home when moved to another Venue or Playing Field; it is neutral only when the federation explicitly designates it so.
+_Avoid_: Inferring neutrality from Team ownership
+
+**Schedule Revision**:
+A preserved version of a Match's published kickoff, Venue, Playing Field, participant, or Home and Away assignment. After first publication, every change records the responsible Admin, mandatory internal reason, optional public explanation, and prior public schedule; postponement, cancellation, and suspension always require a reason.
+_Avoid_: Silent schedule edit, Match Result correction
+
+**Calendar Export**:
+A downloadable offline calendar of Public Matches for a Competition or Season. It includes only Matches with a confirmed Scheduled Kickoff, retains stable event identity across Schedule Revisions, and marks a Cancelled Match as cancelled rather than removing it.
+_Avoid_: Editable source calendar, private schedule export
+
+**Scheduling Constraint**:
+A validation rule applied when generating or publishing a schedule, including participant overlap, source finalization, format consistency, minimum rest, and Playing Field occupancy. Participant and dependency violations block publication; rest and field-turnaround warnings may be overridden by an Admin with a reason.
+_Avoid_: Competition Format rule, hidden scheduling preference
 
 **Match Result**:
 The current official outcome of a Match recognized by the federation and used for sporting progression. It may confirm the Played Score or supersede it with a Technical Result.
@@ -305,16 +369,28 @@ A final federation decision recorded by an Admin that assigns, revises, or revok
 _Avoid_: Protest, silent result edit
 
 **Scheduled Match**:
-A Match whose participants and intended playing time have been published but which does not yet have an official Match Result.
+A Match whose intended kickoff has been confirmed and which does not yet have an official Match Result. It may remain Private or be Public.
 _Avoid_: Upcoming result
 
 **Postponed Match**:
-A Match that will not be played at its currently published time and is awaiting or has received a replacement time.
+A Match that will not be played at its most recently confirmed kickoff and awaits a replacement schedule. Confirming the replacement returns it to Scheduled while preserving the previous Schedule Revision.
 _Avoid_: Cancelled Match
 
 **Cancelled Match**:
 A Match that the federation has determined will not be played.
 _Avoid_: Postponed Match
+
+**In-progress Match**:
+A Match that has begun but does not yet have a confirmed official Match Result.
+_Avoid_: Finished Match, Scheduled Match
+
+**Suspended Match**:
+A Match that began but did not finish and awaits a federation decision. It preserves the played information and may be resumed, replaced, confirmed at its current score, superseded by a Technical Result, or ended by another explicit ruling.
+_Avoid_: Postponed Match, Suspended Tie
+
+**Replacement Match**:
+A new Match ordered by the federation to replay a Suspended Match from the beginning. It retains an explicit relationship to the original Match instead of replacing or deleting its history.
+_Avoid_: Rescheduled continuation, Replay Match configured as a Tie Resolution Rule
 
 **Finished Match**:
 A Match whose Match Result has been confirmed by an Admin and is current Official information, whether the Teams played or the federation assigned a Technical Result without play.
