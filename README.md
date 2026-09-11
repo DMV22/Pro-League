@@ -166,6 +166,43 @@ Business rules belong to framework-independent domain and application modules ra
 - One-time first-Admin bootstrap that is unavailable after activation, plus reasoned email notifications for access-state changes.
 - External Sync Pending retries that preserve immediate local denial, and Reconciliation Required handling for Clerk Dashboard changes missing federation context.
 
+## Production constraints
+
+- Low expected local-federation traffic, with a baseline capacity of 100 concurrent public requests and 10 Admin sessions primarily absorbed through public-content caching.
+- A cost-first hosting posture that uses the least expensive production configuration which still satisfies the agreed availability, recovery, backup, privacy, and security constraints; higher capacity is added only when observed demand requires it.
+- Public Portal availability SLO of 99.5% per month excluding announced maintenance, with cached Published information prioritized during partial failure.
+- Public performance targets at the 75th percentile of LCP up to 2.5 seconds, INP up to 200 milliseconds, CLS up to 0.1, and cached server responses up to 500 milliseconds.
+- Disaster-recovery targets of RPO up to 15 minutes and RTO up to four hours, covering PostgreSQL, Media Assets, deployment configuration, secret-recovery procedure, and Clerk/webhook runbooks.
+- A named Technical Operator responsible for deployment, monitoring, backup, and restoration, while an Admin validates recovered Official information.
+- A cost-first production envelope targeting USD 10–20 per month, with any recurring infrastructure cost above USD 25 requiring an explicit decision; domain and transactional email costs are tracked separately.
+- Seven days of point-in-time database recovery, 14 days of daily backups, and six months of monthly backups, with an isolated restore test each quarter and before a high-risk data migration.
+- Permanent federation archives for Published competition history and Audit History, with time-limited retention and review for private registration data, supporting documents, Privacy Requests, abandoned drafts, and orphaned Media Assets.
+- Application logs retained for 30 days, Security Events for 90 days, and aggregated non-personal operational metrics for 12 months; Player personal data is excluded from logs.
+- Legal Holds that suspend scheduled deletion for information required by a protest, investigation, or legal obligation and record the reason in Audit History.
+- Co-located European production services, encrypted connections, and isolated Development, Preview/Staging, and Production data, identity, storage, secrets, and webhook boundaries.
+- Synthetic or anonymized non-production Player data; Production personal data is never copied into preview environments.
+- Ukrainian-only MVP presentation using Unicode, `DD.MM.YYYY`, 24-hour time, `Europe/Kyiv` display, and UTC storage, while user-facing strings remain externalizable.
+- WCAG 2.2 AA as the accessibility acceptance target for both the public Portal and Admin interface.
+- Minimal Player Public Profiles that exclude exact birth date, federation identifier, contacts, address, and supporting documents.
+- A stricter publication gate for Players under 18, requiring a recorded lawful basis or representative consent with scope and revocation history for a photo and full public profile.
+- Private audited Privacy Requests acknowledged within five business days and resolved within 30 calendar days through explicit workflow states and a reasoned outcome.
+- No advertising, tracking pixels, or behavioral profiling in the MVP; public analytics remains minimal and cookieless, while Clerk cookies serve Admin authentication only.
+- Graceful degradation that keeps cached Published information readable while blocking unsafe mutations or publication when PostgreSQL or Audit History is unavailable.
+- Monitoring for public and Admin availability, errors, latency, storage and database capacity, backups, Clerk webhooks, scheduled publication, certificate expiry, and infrastructure cost.
+- Severity-based incident handling with a one-hour response target for data exposure, corruption, or total outage; four hours for Admin outage or public degradation; and the next business day for minor incidents.
+- Technical incident recovery owned by the Technical Operator and Official-information validation and federation communication owned by an Admin, even when one person initially performs both responsibilities.
+- Email alerts for the Technical Operator and an optional immediate channel such as Telegram for critical incidents.
+- Security-update targets of 72 hours for critical fixes, 14 days for high-risk fixes, and monthly review for other dependencies.
+- CDN caching and request, upload, and database-query limits, with verified Clerk webhook signatures.
+- Privacy deletions applied to the live system and cache, recorded for reapplication after a backup restore, while immutable backups expire under their retention schedule.
+- Cached pages marked with their last-updated time and a stale-data warning when currentness cannot be confirmed.
+- Admin validation of restored Official information before mutations and scheduled publication are unblocked.
+- Approximately 48 hours' public notice for planned maintenance that affects Visitors.
+- Documented export of PostgreSQL data, original Media Assets, and configuration to avoid provider-specific lock-in.
+- Support for the current two major versions of Chrome, Edge, Firefox, and Safari, including responsive mobile access and server-rendered critical public information.
+- Backward-compatible database migrations, pre-change backups for high-risk migrations, deployment health checks, and a tested rollback path.
+- Automated accessibility checks during development plus manual keyboard and screen-reader verification of critical public and Admin flows before release.
+
 Commercial transfer-market features, contracts, fees, budgets, player market values, detailed player statistics, public accounts, additional administrative roles, in-platform voting, and protest case management are outside the initial MVP.
 
 ## Current state

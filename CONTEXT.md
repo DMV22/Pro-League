@@ -352,6 +352,62 @@ _Avoid_: Current entity state, raw infrastructure log
 A documented exceptional process for restoring administrative control when normal Admin operations cannot do so, including when the last Active Admin is unavailable. Initial bootstrap uses a one-time operator action that works only while no Active Admin exists; later Break-glass use requires explicit evidence and reconciliation into Audit History rather than direct silent data editing.
 _Avoid_: Routine Admin management, silent database edit
 
+**Technical Operator**:
+The person responsible for deployment, monitoring, incident response, backup, and restoration without becoming a separate business role in the Admin interface. The Technical Operator restores service, while an Admin validates recovered Official information.
+_Avoid_: Admin role, federation decision-maker
+
+**Production Cost Envelope**:
+The cost-first operating constraint that targets USD 10–20 in recurring monthly infrastructure cost for the expected small audience while preserving the agreed availability, recovery, backup, privacy, and security guarantees. Exceeding USD 25 requires an explicit decision; domain and transactional email costs are tracked separately. Capacity grows from observed demand rather than speculative traffic forecasts.
+_Avoid_: Guaranteed provider price, free at any reliability cost, premature scaling budget
+
+**Backup Retention Policy**:
+The recovery schedule comprising seven days of point-in-time database recovery, 14 days of daily backups, and six months of monthly backups. An isolated restore test is performed quarterly and before a high-risk data migration.
+_Avoid_: Data Retention Policy, unverified backup existence
+
+**Data Retention Policy**:
+The federation-approved schedule that keeps Published competition history and Audit History as its permanent archive; reviews private Player registration data after participation plus five years; keeps supporting application documents for three years after the Season; keeps Privacy Requests for five years; and removes abandoned Drafts and orphaned Media Assets after 30 days unless a Legal Hold applies.
+_Avoid_: Backup Retention Policy, indefinite private-data storage
+
+**Service Level Objective**:
+The production reliability target against which the Portal is operated. The public Portal targets 99.5% monthly availability excluding announced maintenance, while already Published information is prioritized over Admin mutations during partial failure.
+_Avoid_: Absolute uptime guarantee
+
+**Recovery Point Objective**:
+The maximum acceptable interval of recent production changes that could be lost after disaster recovery, set to 15 minutes for ProLeague.
+_Avoid_: Backup frequency alone
+
+**Recovery Time Objective**:
+The target maximum time to restore the production Portal after a critical failure, set to four hours for ProLeague.
+_Avoid_: Incident acknowledgement time
+
+**Graceful Degradation**:
+A partial-failure state in which cached Published information remains readable while unsafe mutations, publication, or unaudited changes are blocked until authoritative services recover.
+_Avoid_: Stale data presented as current without indication
+
+**Player Public Profile**:
+The minimal public sporting representation of a Player: full name, permitted photo, birth year or calculated age, playing position, current Season Roster registration, prior Season participation, and published Local or Legionnaire classification. Exact birth date, federation identifier, contacts, address, and supporting documents remain private.
+_Avoid_: Player Identity record, complete registration file
+
+**Minor Player**:
+A Player under 18 whose public photo and full profile require a recorded lawful basis or representative consent. The record identifies the representative, date, publication scope, and revocation history. Without it, the Portal exposes only the minimum sporting identification required for Official information.
+_Avoid_: Adult Player privacy defaults
+
+**Player Publication Consent**:
+The private record supporting publication of a Minor Player's photo or full Player Public Profile. It identifies the lawful basis or representative, grant date, permitted scope, expiry when applicable, and revocation history.
+_Avoid_: Season Roster approval, public profile field
+
+**Privacy Request**:
+A private, audited external request concerning personal data. It is acknowledged within five business days and targeted for resolution within 30 calendar days through Received, In Review, Fulfilled, Partially Fulfilled, or Rejected. Its reasoned resolution may correct data, restrict a public profile, replace or remove a photo, delete unnecessary private data, or preserve required Official sporting history.
+_Avoid_: Public correction request, silent profile deletion
+
+**Legal Hold**:
+An Admin decision that suspends scheduled deletion of records or Media Assets required by a protest, investigation, or legal obligation. It records a reason and produces an Audit Event.
+_Avoid_: Permanent retention by default, unaudited deletion override
+
+**Incident Record**:
+A private operational record of a production incident, including severity, timeline, impact, affected data or capabilities, response, recovery, and follow-up actions. SEV-1 and SEV-2 incidents require a postmortem.
+_Avoid_: Public News Article, routine application log
+
 **Visitor**:
 A person who reads Published News Articles and other public Official information without registering or signing in. Visitor accounts are outside the launch scope.
 _Avoid_: User when no authenticated public identity exists
