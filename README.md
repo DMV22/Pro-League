@@ -247,6 +247,34 @@ Business rules belong to framework-independent domain and application modules ra
 - Rendering and cache acceptance tests cover server-rendered Published content, exclusion of private states from public discovery and caches, semantic invalidation, freshness targets, urgent removal, authorization, stale builder conflicts, idempotent jobs, and cache-outage degradation.
 - Production acceptance verifies cache persistence across deployment, multi-instance coherence where applicable, tag invalidation, urgent CDN purge, database-outage behavior, and replay of pending invalidations.
 
+## PostgreSQL data access and migrations
+
+- Drizzle ORM with Drizzle Kit and the node-postgres driver is the selected persistence stack.
+- Drizzle is confined to infrastructure repositories and the read-only Query Layer; its table and row types do not become domain or application contracts.
+- Version-controlled, reviewable SQL migrations are the database deployment boundary, with explicit PostgreSQL SQL retained for invariants or operations the Drizzle schema DSL cannot represent faithfully.
+- Drizzle TypeScript schema describes the current application-facing database shape, while one committed SQL migration timeline is the complete deployment history and includes every custom PostgreSQL statement.
+- Drizzle push is permitted only for disposable local experimentation; every shared environment uses generate, reviewed SQL, and migrate.
+- The implementation pins mutually compatible stable Drizzle ORM, Drizzle Kit, and pg versions and avoids preview features for critical invariants.
+- One PostgreSQL application schema and migration timeline serve all modules; module ownership is expressed through schema files and repositories rather than separate PostgreSQL schemas.
+- Explicit reviewed SQL owns exclusion and range constraints, extensions, advisory and ordered row locks, outbox claims, online DDL, specialized or deferrable constraints, roles and grants, append-only audit protection, and SQLSTATE retry classification.
+- Deployment verifies the migration ledger. CI tests clean installation and upgrade from the preceding schema, while Staging and post-restore Production use a read-only normalized schema comparison for drift.
+- Migrations run once in a locked release job before compatible application traffic and never from a Next.js process startup, Server Action, or request.
+- Production schema evolution is forward-only expand-contract. Application rollback remains compatible with the expanded schema, and destructive cleanup occurs in a later verified release after backup.
+- Repository, constraint, lock, transaction, migration, and outbox tests run against the same PostgreSQL major version as Production rather than SQLite or PGlite.
+- Development, CI, and Preview use deterministic synthetic fixtures. Production seeding and first-Admin bootstrap are separate explicit operational commands.
+- A shared transaction adapter supplies transaction-scoped owning repositories and maps PostgreSQL constraint, serialization, deadlock, and timeout failures into typed application outcomes.
+- Direct pg access is not a parallel persistence path; any proven low-level requirement remains parameterized and encapsulated by the owning infrastructure repository.
+- Pool limits remain deployment configuration. Each warm Node instance reuses one pg pool, with a provider pooler added only when the selected hosting topology requires it.
+- A migration and its Drizzle metadata become immutable after application to any shared environment; corrections always use a new descriptive migration.
+- The initial migration builds the complete database from an empty PostgreSQL instance. Each later migration represents one coherent schema change or one expand-contract phase.
+- Small deterministic data changes may run as reviewed migration SQL, while long backfills use separate idempotent jobs with progress, retry, and verification.
+- Non-transactional operations such as concurrent index creation run as isolated resumable deployment steps with explicit pre- and post-checks.
+- Production migrations use bounded lock and statement timeouts and fail safely rather than blocking Portal traffic indefinitely.
+- Manual Production DDL is prohibited outside a recorded Break-glass incident followed by a reconciliation migration and drift verification.
+- Initial drift detection compares normalized schema-only dumps from a migration-built reference database and the read-only target, using a pg_dump version compatible with the server.
+- Generated SQL, Drizzle snapshots and metadata, and the TypeScript schema are committed together; CI repeats generation and rejects an unexplained diff.
+- Migration acceptance requires SQL review, empty-database installation, previous-release upgrade, constraint and lock tests, data verification, repeat deployment, expand-contract compatibility, drift comparison, and rehearsed recovery.
+
 ## Production constraints
 
 - Low expected local-federation traffic, with a baseline capacity of 100 concurrent public requests and 10 Admin sessions primarily absorbed through public-content caching.
