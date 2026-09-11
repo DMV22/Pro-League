@@ -131,11 +131,25 @@ Business rules belong to framework-independent domain and application modules ra
 - Cumulative, revocable, and supersedable Standing Adjustments whose previous decisions remain immutable.
 - Immutable Final Standings Snapshots and Qualification Outputs produced by explicit Stage finalization.
 - Validation that every active Stage has a complete Tie-breaker chain and valid Qualification Slots.
-- News Articles with Draft, Published, Archived, and correction history.
-- Associations between News Articles and multiple Competitions, Seasons, and Teams.
+- Categorized Ukrainian-language News Articles with Draft, Scheduled, Published, and Archived states, authenticated preview, automatic or manual publication, and correction history.
+- Versioned structured rich-text content stored as validated JSON, rendered through the same controlled semantic component mapping for authenticated preview and server-rendered public pages.
+- Supported article blocks for paragraphs, H2-H3 headings, emphasis, lists, links, quotations, accessible tables, inline images, and validated YouTube references, without arbitrary HTML, scripts, or styles.
+- Stable article URLs, editable SEO fallbacks, archive discovery, and optional time-bounded Featured promotion without manual ordering of the entire feed.
+- Explicit associations between News Articles and multiple Competitions, Seasons, Teams, Matches, and Players.
+- One cover image and multiple inline images per article, with required accessibility classification and media attribution metadata.
+- Reusable immutable Media Assets with contextual alt text and captions, private originals, optimized public variants, safe YouTube references, and no arbitrary embeds.
+- JPEG, PNG, and WebP uploads up to 10 MB, stripped of EXIF metadata and processed into responsive formats using a non-destructive focal point.
+- Physical deletion limited to never-published Draft Articles; published content and its revisions remain preserved.
+- Immutable first-publication timestamps, with a separate original publication timestamp reserved for future historical imports.
+- Published Articles archived rather than returned to Draft; restoration retains their stable URL and original publication time.
+- Working Revisions that leave the current Published Revision visible until an explicit, reasoned publication action, with public explanations for material Article Corrections.
+- Server-authoritative Draft autosave, limited recovery snapshots, and optimistic concurrency that prevents stale editing sessions from silently overwriting newer work.
+- Readiness validation when scheduling and again at publication time, with invalid scheduled attempts exposing no partial content and remaining available for Admin attention.
+- Versioned content schemas, accessible table constraints, HTTPS-only links, safe YouTube references, and explicit indexing rules for every editorial state.
+- Media Withdrawal for exceptional rights-related removal, substituting a public placeholder while preserving metadata and audit history.
 - Audit history for corrections to published Official information.
 
-Transfers, contracts, player market values, detailed player statistics, public accounts, additional administrative roles, in-platform voting, and protest case management are outside the initial MVP.
+Commercial transfer-market features, contracts, fees, budgets, player market values, detailed player statistics, public accounts, additional administrative roles, in-platform voting, and protest case management are outside the initial MVP.
 
 ## Current state
 
