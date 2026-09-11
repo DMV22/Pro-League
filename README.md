@@ -166,6 +166,53 @@ Business rules belong to framework-independent domain and application modules ra
 - One-time first-Admin bootstrap that is unavailable after activation, plus reasoned email notifications for access-state changes.
 - External Sync Pending retries that preserve immediate local denial, and Reconciliation Required handling for Clerk Dashboard changes missing federation context.
 
+## Server-side module boundaries
+
+- Competition owns Competitions, Seasons, Competition Formats, Competition Stages, their rules, and sporting lifecycles.
+- Registration owns Teams, Players, Season Applications, Season Entries, Rosters, registration and transfer windows, and eligibility decisions.
+- Match owns Fixture Slots, Matches, scheduling, Venues, Match Results, and match-level rulings.
+- Standings & Progression owns derived Standings, Standing Adjustments, qualification, knockout progression, and final snapshots.
+- Editorial owns News Articles, categories, revisions, and publication; Media separately owns Media Assets, variants, metadata, and the object-storage lifecycle.
+- Identity & Access owns Admin Identity, grants, invitations, and Clerk synchronization.
+- Governance owns Audit History, Privacy Requests, Legal Holds, and the privacy-deletion ledger; Operations owns Incident Records and recovery verification.
+- Every persistent record has one owning module. Other modules use its application interface rather than importing its repository or mutating its tables.
+- The modules share one PostgreSQL database and may use cross-module foreign keys for referential integrity, but cross-module cascading deletion is prohibited.
+- Cross-module workflows are coordinated by server-side application orchestrators. Critical Official-information changes and their Audit Events commit in one PostgreSQL transaction.
+- Clerk, object storage, notifications, cache revalidation, media processing, analytics, and monitoring use idempotent asynchronous coordination, retry, and reconciliation outside the critical database transaction.
+- Server-side boundaries do not mirror the existing Redux slices. Redux is limited to local UI state and optional non-authoritative client caching.
+- Competition, Season, Competition Stage, and each versioned Competition Format are separate aggregate roots; Competition owns the single Current Season designation.
+- A Format Amendment creates and atomically activates a new validated Format version instead of editing the active version in place.
+- Match owns sporting state, visibility, schedule and its revisions, Played and Technical Result history, and match-level Result Rulings; Venue remains an independent reusable aggregate.
+- Standings are calculated from Match Results and Stage rules rather than manually edited. Knockout Tie owns its lifecycle, Tie Rulings, and winner output, while immutable final standings, qualification, and knockout snapshots preserve finalized evidence.
+- Team and Player Identity are independent roots. Season Application owns its decision lifecycle, while one Season Roster per Season Entry controls Roster Entries, size limits, and Legionnaire quotas.
+- News Article controls its lifecycle and immutable revisions; Category remains independent. Media Asset controls its original metadata, processing, variants, defaults, and withdrawal, while contextual placement belongs to an Article Revision.
+- Admin Identity, Admin Invitation, Admin Access Grant, Privacy Request, Legal Hold, and Incident Record are independent roots. Audit Event is an append-only transaction participant rather than an editable aggregate.
+- Cross-aggregate references use stable identifiers by default. Immutable snapshots are reserved for information whose published or approved historical representation must not change.
+- Mutable aggregates use optimistic versions. Stale Admin commands fail with an explicit conflict and are never silently merged.
+- Short PostgreSQL row or advisory locks protect cross-aggregate invariants such as Current Season designation, roster transfer, Stage or Tie finalization, Format Amendment, last-Admin protection, Fixture Slot assignment, and bulk schedule publication.
+- Stage finalization atomically validates input versions, creates final snapshots and progression outputs, changes state, appends its Audit Event, and enqueues post-commit effects.
+- Changing an Official Match Result atomically invalidates affected calculations and cache state; a Finalized Stage must follow its reopening workflow first.
+- Current Standings are calculated server-side and may be cached. Only their authoritative inputs and explicitly finalized snapshots are persisted as sporting truth.
+- Important mutations use a command idempotency key. The same key and payload returns its prior outcome, while reuse with a different payload is rejected.
+- Critical invariants are expressed in both domain validation and PostgreSQL constraints where possible.
+- A transactional outbox captures external work in the committing business transaction; idempotent workers perform and retry Clerk, storage, notification, cache, media, and scheduled operations only after commit.
+- Media upload uses an expiring Upload Intent, a private temporary object, and explicit database activation; cleanup removes abandoned uploads.
+- Automatic retry is limited to safe idempotent commands after transient serialization or deadlock failures. Domain, validation, and stale-version conflicts return to the Admin.
+- Successful protected mutations commit with their Audit Event. Denied or failed attempts are appended separately after rollback; if Audit History is unavailable, protected mutations fail closed.
+- Critical cross-module invariants use synchronous application orchestration in a shared transaction; asynchronous events are limited to post-commit effects and derived projections.
+- A server-only Query Layer may join module-owned tables to build public and Admin view models, but it is strictly read-only and owns no domain state.
+- The Shared Kernel is limited to stable IDs, UTC time, pagination, actor and correlation context, transaction boundaries, and common result or error primitives; it contains no shared mutable domain entities.
+- Domain modules do not import one another. Application orchestrators call their public ports, infrastructure implements private repositories, and Next.js routes and components depend on application commands and queries.
+- Season activation locks the Season and revalidates the referenced Format, opening Stage, and participant-set versions before changing state.
+- A validated Format Amendment Plan applies Competition, Match, and Progression changes atomically; a partially applied format is invalid.
+- Privacy Request execution is an audited multi-step process: it checks Legal Holds, commits database changes, dispatches external deletion and cache work through the outbox, and resolves only after required effects complete.
+- Cross-module foreign keys restrict deletion. Historical references use archive, withdrawal, supersession, or privacy restriction instead of cascading physical deletion.
+- Publication and Official-result changes commit before versioned cache-tag revalidation. Temporary stale reads follow the Portal's Graceful Degradation rules.
+- Article publication validates that every referenced Media Asset is Active, not withdrawn, and has ready public variants without calling object storage inside the transaction.
+- Expensive finalization calculations produce a candidate from recorded input versions before taking locks; a short transaction revalidates those versions and either commits the snapshot or returns a conflict.
+- Failed post-commit effects do not reverse an accepted domain decision. They remain External Sync Pending, retry idempotently, and escalate to reconciliation when exhausted.
+- Module ports, commands, and query contracts are framework-neutral TypeScript without React, Next.js request objects, or ORM entities, allowing future HTTP adapters or extraction.
+
 ## Production constraints
 
 - Low expected local-federation traffic, with a baseline capacity of 100 concurrent public requests and 10 Admin sessions primarily absorbed through public-content caching.
