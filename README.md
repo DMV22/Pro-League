@@ -29,6 +29,7 @@ Admin identity and sessions: Clerk invite-only
 
 - **PostgreSQL** is the authoritative store for public and administrative data.
 - **Clerk** authenticates invited Admin identities; the application still verifies that an identity maps to an active Admin record.
+- Clerk Organizations and Clerk role metadata are not authorization sources in the MVP; PostgreSQL owns the Admin access state.
 - **Object storage** holds uploaded media while PostgreSQL holds its metadata and associations.
 - **Server Components** read through server-only application services and repositories.
 - **Server Actions** execute mutations initiated by the Admin interface.
@@ -148,6 +149,22 @@ Business rules belong to framework-independent domain and application modules ra
 - Versioned content schemas, accessible table constraints, HTTPS-only links, safe YouTube references, and explicit indexing rules for every editorial state.
 - Media Withdrawal for exceptional rights-related removal, substituting a public placeholder while preserving metadata and audit history.
 - Audit history for corrections to published Official information.
+- Multiple Admin identities sharing one Admin role, provisioned through revocable Clerk invitations while public registration remains disabled.
+- Persistent Admin Identities separated from historical Admin Access Grants so revocation preserves authorship and later reappointment creates a new grant.
+- Mandatory Admin MFA using an authenticator application and backup codes.
+- Server-side authorization at every protected read and mutation, requiring both a valid completed Clerk session and an Active PostgreSQL Admin record.
+- Invited, Active, Suspended, and Revoked Admin access with immediate local denial, Clerk session revocation, preserved authorship, and last-Admin lockout protection.
+- Idempotent Clerk webhook synchronization that never replaces server-side authorization and fails closed while an identity is unmatched.
+- Immutable Audit Events for access changes, authorization denials, Official-information mutations, rulings, lifecycle transitions, exceptional overrides, scheduled operations, and private-document access.
+- Audit records containing actor, action, target, timestamp, structured change, reason, reference, correlation, source, and outcome without credentials or private file contents.
+- Atomic domain mutations and Audit Events, with requested and succeeded or failed events around non-transactional Clerk and object-storage operations.
+- Filterable Admin audit views and CSV export, append-only application behavior, restricted database permissions, and no Admin impersonation.
+- Security-only capture of network and client context, with its exact retention deferred to the production privacy and operations decision.
+- Seven-day Admin invitations with explicit resend or revoke-and-replace handling and preserved invitation history.
+- Configurable 12-hour maximum Admin sessions and 30-minute inactivity expiry, plus recent identity reverification for sensitive security and bulk-private-data operations.
+- Controlled MFA recovery by another Active Admin or a documented Break-glass Procedure, always with session revocation and an audited reason.
+- One-time first-Admin bootstrap that is unavailable after activation, plus reasoned email notifications for access-state changes.
+- External Sync Pending retries that preserve immediate local denial, and Reconciliation Required handling for Clerk Dashboard changes missing federation context.
 
 Commercial transfer-market features, contracts, fees, budgets, player market values, detailed player statistics, public accounts, additional administrative roles, in-platform voting, and protest case management are outside the initial MVP.
 
