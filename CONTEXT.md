@@ -293,8 +293,64 @@ An audited federation exception that permits a Roster Entry which would otherwis
 _Avoid_: Qualification Ruling, unchecked Admin override
 
 **Admin**:
-An authenticated federation representative authorized to create, edit, and publish Official information. At launch, ProLeague has one authorized role rather than separate editorial and publishing roles.
+A federation representative whose Admin Identity has a current Active Admin Access Grant. ProLeague may have multiple Admins, but at launch they all share one authorized role rather than separate editorial, publishing, or security roles; impersonation is not permitted.
 _Avoid_: Editor, Publisher
+
+**Admin Identity**:
+The persistent record of a federation representative and their authorship across administrative access periods. It is mapped to the external authenticated identity after invitation acceptance and remains preserved when an Access Grant ends or an external account is deleted.
+_Avoid_: Admin Access Grant, current email address
+
+**Admin Invitation**:
+A seven-day invitation for a named email address to obtain administrative access. It proceeds through Pending, Accepted, Expired, or Revoked. A duplicate Pending invitation is not created implicitly; it may be resent, or revoked and replaced, while every prior invitation remains preserved.
+_Avoid_: Public sign-up, active Admin access
+
+**Admin Access Grant**:
+A distinct period in which an Admin Identity is permitted to administer ProLeague. A former Admin who is appointed again receives a new Access Grant rather than reopening a Revoked one.
+_Avoid_: Admin Identity, authentication session
+
+**Admin Access State**:
+The Portal's authoritative decision about an Admin Access Grant: Invited, Active, Suspended, or Revoked. Suspension is temporary and reversible without a new invitation, while Revocation permanently ends that grant; neither removes the Admin's authorship or Audit History.
+_Avoid_: Authentication session, invitation status
+
+**Authorization Decision**:
+The server-side decision that permits a protected operation only when the request has a valid completed identity session mapped to an Active Admin. Client-side visibility never grants authority, and an unavailable or unmatched access record denies the operation.
+_Avoid_: Signed-in UI state, identity verification alone
+
+**Admin Session**:
+An authenticated administrative session with a configurable maximum lifetime of 12 hours and an inactivity limit of 30 minutes. A new session is required after restoration from suspension, revocation of prior sessions, or expiry.
+_Avoid_: Admin Access Grant, indefinite login
+
+**Sensitive Admin Operation**:
+An access-management, MFA-recovery, Break-glass, private-document bulk-export, or security-configuration action that requires recent identity reverification in addition to an Active Admin Session.
+_Avoid_: Ordinary Official-information editing
+
+**MFA Recovery**:
+A controlled recovery after an Admin loses every second factor and backup code. Another Active Admin verifies the person outside the Portal, records a reason, resets MFA, and revokes existing sessions; when no other Admin exists, the Break-glass Procedure is required.
+_Avoid_: Self-service reset, password recovery
+
+**Audit Event**:
+An immutable record of an administrative, security, or automated action. It identifies the stable actor identity or System, actor-name and email snapshot, action, affected object, UTC server time, structured change or immutable revision reference, reason where required, supporting reference, request correlation, source, and outcome while excluding credentials, tokens, secrets, and private document contents. The related domain change cannot succeed unless its Audit Event is recorded atomically.
+_Avoid_: Editable activity note, application log
+
+**Security Event**:
+An Audit Event about an Admin session, authorization denial, MFA recovery, access-state change, external identity deletion, or Break-glass Procedure. It may include network and client context subject to the Portal's privacy and retention rules.
+_Avoid_: Every public request, raw authentication-provider log
+
+**External Sync Pending**:
+The state of an external security or storage action that was requested but has not yet succeeded. Local denial of access remains effective while retries and outcomes are audited; an external failure never restores permission.
+_Avoid_: Successful synchronization, rolled-back local access restriction
+
+**Reconciliation Required**:
+An externally initiated administrative or security change whose Audit Event lacks a federation reason or other required context. The change remains visible and cannot be removed while an Active Admin supplies the missing explanation.
+_Avoid_: Failed webhook, ignored external change
+
+**Audit History**:
+The ordered collection of Audit Events that explains how Official information, access, and exceptional decisions reached their current state.
+_Avoid_: Current entity state, raw infrastructure log
+
+**Break-glass Procedure**:
+A documented exceptional process for restoring administrative control when normal Admin operations cannot do so, including when the last Active Admin is unavailable. Initial bootstrap uses a one-time operator action that works only while no Active Admin exists; later Break-glass use requires explicit evidence and reconciliation into Audit History rather than direct silent data editing.
+_Avoid_: Routine Admin management, silent database edit
 
 **Visitor**:
 A person who reads Published News Articles and other public Official information without registering or signing in. Visitor accounts are outside the launch scope.
