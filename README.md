@@ -213,6 +213,40 @@ Business rules belong to framework-independent domain and application modules ra
 - Failed post-commit effects do not reverse an accepted domain decision. They remain External Sync Pending, retry idempotently, and escalate to reconciliation when exhausted.
 - Module ports, commands, and query contracts are framework-neutral TypeScript without React, Next.js request objects, or ORM entities, allowing future HTTP adapters or extraction.
 
+## Next.js rendering and client state
+
+- The application targets a pinned Next.js 16 release with Cache Components enabled and the Node.js runtime. It does not mix the Cache Components model with legacy route-level cache configuration.
+- Public pages combine a prerendered shell with cached Server Components backed directly by server-only Query Layer functions; independent slow or request-time sections stream through Suspense.
+- Cache boundaries wrap cohesive serializable view-model queries rather than pages, repositories, ORM entities, or mutable domain aggregates.
+- Authenticated Admin pages, previews, authorization decisions, Drafts, private documents, and personal data remain request-time and are never stored in a shared cache.
+- Client Components stay at narrow interactive boundaries such as dialogs, rich-text editing, media tools, upload progress, and drag-and-drop format or schedule building.
+- Server Actions adapt same-origin Admin commands. Route Handlers are reserved for real HTTP consumers such as Clerk webhooks, storage callbacks, downloads, health checks, external schedulers, and a future API.
+- A route-scoped Redux Toolkit store supports the genuinely complex Competition Format and Schedule Builder working UI, including multi-panel selection and bounded undo or redo. PostgreSQL Drafts remain authoritative through autosave and version checks.
+- The existing browser-owned league slice and redux-persist domain storage are retired. RTK Query is not used for ordinary Server Component reads.
+- Shareable navigation, filters, sorting, and pagination belong in route segments or normalized search parameters; small non-shareable interactions remain component-local.
+- Live event entry, WebSockets, automatic score polling, and a global client server-state cache are outside the MVP. Published Match updates propagate through post-commit cache revalidation.
+- Public freshness targets are immediate removal for privacy or security restrictions, up to 60 seconds for current sporting information and new or corrected News Articles, and up to 15 minutes for historical and reference pages.
+- Event-driven semantic invalidation is primary and cache lifetime is a bounded fallback. Stable projection tags use entity IDs and cohesive views such as an Article, Season schedule, Season Standings, Stage progression, or public feed rather than every underlying row.
+- Privacy Requests, Media Withdrawals, accidental disclosure, and other sensitive removals use an Urgent Purge path that disables origin access and confirms data, HTML, and media-CDN eviction without permitting a stale response.
+- Domain modules emit framework-neutral invalidation intents. A Next.js CacheInvalidation adapter maps them to concrete tags and is invoked durably through the transactional outbox.
+- A successful Server Action may perform immediate invalidation for read-your-own-write, while the outbox remains the durable retry path if the response ends after commit.
+- The deployment supplies the CacheInvalidation adapter through either a protected scheduler Route Handler or a persistent Node worker without changing application contracts.
+- Cached projections expose a committed last-updated value. A stale warning reflects known cache-sync or authoritative-service failure rather than age alone.
+- Canonical entity routes use stable slugs or identifiers; Stage, round, date, filters, sorting, and pagination use normalized parameters. Arbitrary filtered or sorted combinations are not indexed as duplicate pages.
+- The route-scoped builder store is created for one Season Draft, resets when that Draft changes, and treats each successful autosave version as its new base. Undo or redo never rewrites an already saved historical version.
+- Navigation warns while a builder has unsaved or in-flight changes. Any bounded browser recovery snapshot is non-authoritative, excludes private documents, cannot publish directly, and is removed after synchronization.
+- Cache observability measures hit and miss behavior, query and revalidation latency, failures, pending invalidation age, retries, and stale-warning activation without personal data.
+- Sitemap, metadata, and Open Graph output include only Published and indexable records and share their semantic invalidation tags.
+- Central cache profiles initially revalidate current sporting and published editorial projections within 60 seconds, with hard expiry after 5 and 15 minutes respectively; archive projections revalidate within 15 minutes and expire after 24 hours.
+- An Urgent Purge completes only after database suppression, tagged data and HTML eviction, origin denial, and media-CDN purge are confirmed. Failure keeps the Privacy Request open and raises a critical alert.
+- A small request-time freshness sentinel may stream beside cached content to report projection health without making the full public page dynamic.
+- One versioned infrastructure registry maps typed invalidation intents to cache tags; domain code and UI components never construct tag strings.
+- The initial builder Redux store is in-memory only. Server autosave replaces its base version, and stale-version conflicts pause saving until the Admin explicitly discards or rebases the local buffer.
+- Redis or a custom shared cache is deferred until multi-instance deployment or hosting verification proves it necessary.
+- Exhausted ordinary cache invalidation retries become Reconciliation Required and activate operational alerts and stale warnings without reversing the committed domain decision.
+- Rendering and cache acceptance tests cover server-rendered Published content, exclusion of private states from public discovery and caches, semantic invalidation, freshness targets, urgent removal, authorization, stale builder conflicts, idempotent jobs, and cache-outage degradation.
+- Production acceptance verifies cache persistence across deployment, multi-instance coherence where applicable, tag invalidation, urgent CDN purge, database-outage behavior, and replay of pending invalidations.
+
 ## Production constraints
 
 - Low expected local-federation traffic, with a baseline capacity of 100 concurrent public requests and 10 Admin sessions primarily absorbed through public-content caching.
