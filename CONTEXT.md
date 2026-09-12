@@ -12,6 +12,14 @@ _Avoid_: Simulator, football manager, manager game
 Competition content that the federation has approved for public publication through the Portal.
 _Avoid_: Simulated data, generated result
 
+**Supporting Reference**:
+Evidence cited by a federation decision or administrative record, represented as a validated external URL, a Private Document, an external identifier, or a concise textual reference. It supports the decision without replacing the decision record or duplicating protected document contents.
+_Avoid_: Audit Event, arbitrary attachment, copied private document
+
+**Private Document**:
+A versioned non-public file retained as evidence for a Season Application, ruling, Player Publication Consent, Privacy Request, or another authorized federation process. It is available only through audited Admin access and is governed by retention and Legal Hold rules rather than the public Media Asset lifecycle.
+_Avoid_: Media Asset, public attachment, Article Media Placement
+
 **Competition**:
 A football contest administered or covered by the federation, such as a championship or cup. ProLeague may contain multiple Competitions.
 _Avoid_: League when referring to every competition type, tournament as a catch-all term
@@ -227,6 +235,10 @@ _Avoid_: Platform-generated random draw, Match schedule
 **Draw Constraints**:
 The published conditions against which a Draw Outcome is validated, including seeded and unseeded pots, open draws, prohibited pairings, fixed bracket slots, and home or away assignment rules.
 _Avoid_: Draw Outcome, informal pairing preference
+
+**Draw Pool**:
+A configured set of Season Entries or unresolved Qualification Outputs eligible for assignment in one external federation Draw. It may represent an open blind draw or one seeded or unseeded pot; ProLeague validates and records the Draw Outcome but never selects the pairings itself.
+_Avoid_: Draw Outcome, automatically generated pairing, Qualification Slot
 
 **Third-place Match**:
 A one-match Knockout Tie between the losing semi-finalists that determines third and fourth place under its own Tie Resolution Rules and produces no advancing participant.
