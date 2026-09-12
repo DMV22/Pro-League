@@ -264,17 +264,16 @@ Embedded YouTube references remain validated nodes inside the Article Content Do
 | --- | --- | --- |
 | `admin_identities` | Mutable root | Display name, current contact email, lifecycle metadata and optimistic version |
 | `admin_external_identities` | Authoritative mapping | Provider, unique Clerk user ID, Admin Identity and synchronization timestamps |
-| `admin_external_identity_security_states` | Authoritative synchronized state | MFA readiness, last provider event and last verified/reverified times; no credential material |
 | `admin_invitations` | Mutable root | Normalized email, Clerk invitation ID, inviter, expiry, state, resend metadata and version |
 | `admin_access_grants` | Mutable root | Admin Identity, source invitation/bootstrap, state, effective period and optimistic version |
 | `admin_access_state_transitions` | Immutable history | Invited/active/suspended/revoked transition, reason and synchronization state |
-| `admin_sessions` | Operational security state | Opaque/hashed Clerk session ID, grant, start/last-seen/expiry/revocation and reverification time |
+| `admin_sessions` | Operational security state | Opaque/hashed Clerk session ID, grant, start/last-seen/provider expiry and revocation state |
 | `external_identity_events` | Integration inbox detail | Verified Clerk event, subject, occurrence time, sanitized fields and processing outcome |
 | `external_sync_operations` | Mutable reconciliation state | Requested local version, deterministic key, provider reference, retries and outcome |
 | `reconciliation_items` | Mutable workflow | Missing federation context, affected record, explanation and resolution state |
 | `privileged_operation_records` | Private immutable evidence | Bootstrap/Break-glass operator snapshot, reason, evidence, outcome and reconciliation |
 
-The last-Active-Admin rule is enforced by an ordered lock and transaction-time count. No password, session token, MFA seed, or backup code enters PostgreSQL.
+The last-Active-Admin rule is enforced by an ordered lock and transaction-time count. No password, session token, factor secret, or recovery code enters PostgreSQL. A future stronger-authentication plan may add synchronized readiness metadata only after the production Security Review; credential material remains provider-owned.
 
 ## Governance module
 
