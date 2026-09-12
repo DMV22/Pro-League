@@ -19,18 +19,21 @@ Public Portal and Admin interface
         - application services
         - domain modules
                 |
-        +-------+-------+
-        |               |
-        v               v
-   PostgreSQL      Object storage
+        +-------+-------+----------+
+        |               |          |
+        v               v          v
+ Neon PostgreSQL   Cloudflare R2  Resend
 
-Admin identity and sessions: Clerk invite-only
+Admin identity and sessions: Clerk Hobby invite-only
+Scheduled work: Render Cron -> PostgreSQL job/outbox claims
 ```
 
-- **PostgreSQL** is the authoritative store for public and administrative data.
-- **Clerk** authenticates invited Admin identities; the application still verifies that an identity maps to an active Admin record.
+- **Neon PostgreSQL** is the authoritative store for public and administrative data.
+- **Clerk Hobby** authenticates invited Admin identities; the application still verifies that an identity maps to an active Admin record.
 - Clerk Organizations and Clerk role metadata are not authorization sources in the MVP; PostgreSQL owns the Admin access state.
-- **Object storage** holds uploaded media while PostgreSQL holds its metadata and associations.
+- **Cloudflare R2** holds uploaded media, private documents, and encrypted operational archives while PostgreSQL holds domain metadata and associations.
+- **Render** runs one paid Next.js web service and one scheduled dispatcher in Production.
+- **Resend** sends invitation and operational transactional email.
 - **Server Components** read through server-only application services and repositories.
 - **Server Actions** execute mutations initiated by the Admin interface.
 - **Route Handlers** expose only genuine HTTP boundaries such as Clerk webhooks or a future public API.
@@ -151,7 +154,7 @@ Business rules belong to framework-independent domain and application modules ra
 - Audit history for corrections to published Official information.
 - Multiple Admin identities sharing one Admin role, provisioned through revocable Clerk invitations while public registration remains disabled.
 - Persistent Admin Identities separated from historical Admin Access Grants so revocation preserves authorship and later reappointment creates a new grant.
-- Mandatory Admin MFA using an authenticator application and backup codes.
+- Clerk Hobby without mandatory MFA for the initial single-Admin MVP, with a required Security Review before real private documents, a second Admin, or official federation production use.
 - Server-side authorization at every protected read and mutation, requiring both a valid completed Clerk session and an Active PostgreSQL Admin record.
 - Invited, Active, Suspended, and Revoked Admin access with immediate local denial, Clerk session revocation, preserved authorship, and last-Admin lockout protection.
 - Idempotent Clerk webhook synchronization that never replaces server-side authorization and fails closed while an identity is unmatched.
@@ -161,8 +164,8 @@ Business rules belong to framework-independent domain and application modules ra
 - Filterable Admin audit views and CSV export, append-only application behavior, restricted database permissions, and no Admin impersonation.
 - Security-only capture of network and client context, with its exact retention deferred to the production privacy and operations decision.
 - Seven-day Admin invitations with explicit resend or revoke-and-replace handling and preserved invitation history.
-- Configurable 12-hour maximum Admin sessions and 30-minute inactivity expiry, plus recent identity reverification for sensitive security and bulk-private-data operations.
-- Controlled MFA recovery by another Active Admin or a documented Break-glass Procedure, always with session revocation and an audited reason.
+- Provider-managed Clerk Hobby sessions combined with an Active PostgreSQL Admin Access Grant on every protected request; access revocation remains immediately authoritative locally.
+- Sensitive access-management, Break-glass, and bulk-private-data operations remain gated until stronger verification and recovery controls pass the production Security Review.
 - One-time first-Admin bootstrap that is unavailable after activation, plus reasoned email notifications for access-state changes.
 - External Sync Pending retries that preserve immediate local denial, and Reconciliation Required handling for Clerk Dashboard changes missing federation context.
 
@@ -286,6 +289,18 @@ Business rules belong to framework-independent domain and application modules ra
 - Critical uniqueness, state consistency, non-overlapping registration periods, participant scheduling, append-only history, idempotency, and queue claims are protected by named PostgreSQL constraints, locks, grants, and transaction rules.
 - The complete table catalog, ER views, constraint/index matrix, access policy, and deletion rules are documented in [the relational schema blueprint](./docs/architecture/relational-schema.md) and ADR-0024.
 
+## Production topology
+
+- Production uses a Render Starter web service in Frankfurt for the single Next.js process and one Render Cron dispatcher that claims due work directly from PostgreSQL every five minutes.
+- Neon Launch in Frankfurt supplies PostgreSQL over TLS: pooled least-privilege connections serve the application and dispatcher, while dedicated direct connections run reviewed migrations and encrypted logical backups.
+- Cloudflare R2 with EU jurisdiction separates public media, private documents, and operational archives. Public objects use immutable versioned keys; private access uses short-lived signed URLs.
+- Clerk Hobby supplies invite-only Admin authentication without mandatory MFA. PostgreSQL remains authoritative for authorization, and risky capabilities stay disabled until the required Security Review.
+- Resend Free initially carries transactional invitations and operational email. A free external uptime service checks public, Admin, readiness, and Cron heartbeat paths.
+- The low-traffic cost model is approximately USD 13/month at the service minimum and approximately USD 23/month with Neon's typical Launch usage, excluding domain, tax, and overages. USD 20 triggers a warning and recurring cost above USD 25 requires explicit approval.
+- Local Development is free. Shared Staging uses Render Free, Neon Free, a separate Clerk Development application, separate R2 resources, and synthetic data; no production secrets or personal data enter it.
+- Production deployment promotes `develop` through a reviewed pull request to `main`, runs one locked backward-compatible migration step, and requires manual approval. Code may roll back; database changes move forward through expand-contract migrations.
+- The complete environment, credential, backup, logging, failure-mode, ownership, and release-gate design is documented in [the production infrastructure blueprint](./docs/architecture/production-infrastructure.md) and ADR-0026.
+
 ## Production constraints
 
 - Low expected local-federation traffic, with a baseline capacity of 100 concurrent public requests and 10 Admin sessions primarily absorbed through public-content caching.
@@ -345,5 +360,7 @@ pnpm build
 - [Domain language](./CONTEXT.md)
 - [Architecture decisions](./docs/adr/)
 - [Central data architecture research](./docs/research/central-data-architecture-options.md)
+- [Production infrastructure research](./docs/research/production-infrastructure-options.md)
+- [Production infrastructure blueprint](./docs/architecture/production-infrastructure.md)
 
 The accepted application shape is recorded in [ADR-0011](./docs/adr/0011-use-a-single-nextjs-modular-monolith.md). It supersedes the earlier decision to build a separate REST API.
