@@ -275,6 +275,17 @@ Business rules belong to framework-independent domain and application modules ra
 - Generated SQL, Drizzle snapshots and metadata, and the TypeScript schema are committed together; CI repeats generation and rejects an unexplained diff.
 - Migration acceptance requires SQL review, empty-database installation, previous-release upgrade, constraint and lock tests, data verification, repeat deployment, expand-contract compatibility, drift comparison, and rehearsed recovery.
 
+## Relational schema
+
+- The MVP schema is designed in the single PostgreSQL application schema `app`, while server modules retain explicit table and repository ownership.
+- Domain records use application-generated UUIDv7 identifiers. Mutable aggregate roots carry optimistic versions and current pointers; revisions, rulings, transitions, activations, and final snapshots are append-only.
+- Competition Formats and Article publications use mutable server-authoritative working Drafts that produce immutable normalized versions when activated or published.
+- Provisional Standings, Aggregate Scores, and unresolved progression remain derived. Final standings and knockout snapshots record the exact result, rule, adjustment, ruling, draw, and qualification versions used.
+- Cross-module foreign keys restrict deletion. Physical deletion is limited to explicitly safe unpublished or expired data after dependency, retention, privacy, and Legal Hold checks.
+- Public reads use least-privilege database views/roles that exclude Drafts, exact birth dates, private documents, Admin records, and Audit internals.
+- Critical uniqueness, state consistency, non-overlapping registration periods, participant scheduling, append-only history, idempotency, and queue claims are protected by named PostgreSQL constraints, locks, grants, and transaction rules.
+- The complete table catalog, ER views, constraint/index matrix, access policy, and deletion rules are documented in [the relational schema blueprint](./docs/architecture/relational-schema.md) and ADR-0024.
+
 ## Production constraints
 
 - Low expected local-federation traffic, with a baseline capacity of 100 concurrent public requests and 10 Admin sessions primarily absorbed through public-content caching.
