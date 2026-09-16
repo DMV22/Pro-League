@@ -329,23 +329,19 @@ The server-side decision that permits a protected operation only when the reques
 _Avoid_: Signed-in UI state, identity verification alone
 
 **Admin Session**:
-An authenticated administrative session with a configurable maximum lifetime of 12 hours and an inactivity limit of 30 minutes. A new session is required after restoration from suspension, revocation of prior sessions, or expiry.
+An externally authenticated administrative session that permits protected work only while it maps to an Active Admin Access Grant. A new session is required after restoration from suspension, revocation of prior sessions, or expiry under the selected authentication policy.
 _Avoid_: Admin Access Grant, indefinite login
 
 **Sensitive Admin Operation**:
-An access-management, MFA-recovery, Break-glass, private-document bulk-export, or security-configuration action that requires recent identity reverification in addition to an Active Admin Session.
+An access-management, Break-glass, private-document bulk-export, or security-configuration action that remains unavailable until its stronger identity-verification and recovery controls pass the production Security Review.
 _Avoid_: Ordinary Official-information editing
-
-**MFA Recovery**:
-A controlled recovery after an Admin loses every second factor and backup code. Another Active Admin verifies the person outside the Portal, records a reason, resets MFA, and revokes existing sessions; when no other Admin exists, the Break-glass Procedure is required.
-_Avoid_: Self-service reset, password recovery
 
 **Audit Event**:
 An immutable record of an administrative, security, or automated action. It identifies the stable actor identity or System, actor-name and email snapshot, action, affected object, UTC server time, structured change or immutable revision reference, reason where required, supporting reference, request correlation, source, and outcome while excluding credentials, tokens, secrets, and private document contents. The related domain change cannot succeed unless its Audit Event is recorded atomically.
 _Avoid_: Editable activity note, application log
 
 **Security Event**:
-An Audit Event about an Admin session, authorization denial, MFA recovery, access-state change, external identity deletion, or Break-glass Procedure. It may include network and client context subject to the Portal's privacy and retention rules.
+An Audit Event about an Admin session, authorization denial, access-state change, external identity deletion, or Break-glass Procedure. It may include network and client context subject to the Portal's privacy and retention rules.
 _Avoid_: Every public request, raw authentication-provider log
 
 **External Sync Pending**:
