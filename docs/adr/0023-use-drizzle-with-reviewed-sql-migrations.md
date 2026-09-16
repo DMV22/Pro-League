@@ -47,7 +47,7 @@ Production migrations set bounded lock and statement timeouts and fail safely in
 
 Deployment verifies the migration ledger. CI applies every migration to an empty PostgreSQL database, upgrades a database at the previous release, executes deterministic synthetic seeds, and tests repositories, constraints, lock ordering, transaction rollback, data backfills, and concurrent idempotent outbox consumers against the same PostgreSQL major version used in Production. SQLite and PGlite are not acceptance substitutes for PostgreSQL behavior.
 
-CI repeats schema generation and rejects unexplained changes to generated SQL or Drizzle metadata. A read-only drift control builds a reference database from committed migrations and compares its normalized schema-only dump with Staging and, after deployment or restoration, Production. Schema dumps omit ownership and privilege noise, use a pg_dump version compatible with the server, and keep every normalization exception explicit.
+CI repeats schema generation and rejects unexplained changes to generated SQL or Drizzle metadata. A read-only drift control builds a reference database from committed migrations and compares its normalized schema-only dump during release rehearsal, with any future Staging, and after deployment or restoration with Production. Schema dumps omit ownership and privilege noise, use a pg_dump version compatible with the server, and keep every normalization exception explicit.
 
 A migration is accepted only after SQL review, clean installation, previous-release upgrade, constraint and lock tests, backfill verification, repeat deployment, compatibility with both application sides of expand-contract, drift comparison, application rollback rehearsal, and a documented database recovery path.
 
