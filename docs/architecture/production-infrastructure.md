@@ -49,10 +49,10 @@ The service minimum is approximately USD 13/month and the planning figure is app
 | Boundary | Application | Database | Identity | Objects and email | Scheduling |
 | --- | --- | --- | --- | --- | --- |
 | Local Development | Local Next.js process | Local PostgreSQL by default; dedicated Neon Free project is optional | Clerk Development | Dedicated development buckets and Resend test credentials | Commands run manually |
-| Shared Staging | Render Free web service from `develop` | Dedicated Neon Free project with synthetic data | Separate Clerk Development application | Dedicated staging buckets and credentials | Manually triggered; no paid Cron required |
+| Preview | Reviewable deployment for a runtime-changing pull request | Resettable non-production PostgreSQL with synthetic data | Clerk Development | Dedicated non-production buckets and test credentials | Manually triggered; no paid Cron required |
 | Production | Render Starter from `main` | Dedicated Neon Launch project | Clerk Hobby Production | Separate Production buckets, tokens, domain and Resend credentials | One paid Render Cron |
 
-No non-production boundary receives Production secrets, webhooks, private files, or personal data. Staging may sleep, cold-start, reset, or be rebuilt and is never a recovery copy. Pull requests run CI without automatically cloning paid infrastructure; a Preview deployment is created only for a specific review need.
+No non-production boundary receives Production secrets, webhooks, private files, or personal data. Preview resources may sleep, cold-start, reset, or be rebuilt and are never a recovery copy. Every pull request runs CI; runtime-changing pull requests receive a reviewable Preview, while documentation-only changes do not allocate an application environment. A permanent shared Staging boundary is deferred until coordinated federation acceptance, team growth, or migration/import risk justifies it.
 
 Provider accounts may initially belong to the Technical Operator. Before federation adoption, Production billing and owner access move to federation-controlled accounts or newly created federation resources, and the operator receives an individual account rather than a shared password.
 
@@ -67,7 +67,7 @@ The web process and dispatcher use separate pooled Neon connection strings and l
 The delivery path is:
 
 1. A feature branch receives local checks and CI.
-2. A reviewed pull request merges into `develop` and updates shared Staging.
+2. A runtime-changing pull request is verified in its Preview and merges into `develop`; documentation-only pull requests use CI evidence.
 3. A reviewed pull request promotes `develop` into `main`.
 4. A human approves the Production release.
 5. One locked pre-deploy job applies the committed backward-compatible Drizzle migration through the direct migration connection.
