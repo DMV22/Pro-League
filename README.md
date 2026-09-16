@@ -260,7 +260,7 @@ Business rules belong to framework-independent domain and application modules ra
 - The implementation pins mutually compatible stable Drizzle ORM, Drizzle Kit, and pg versions and avoids preview features for critical invariants.
 - One PostgreSQL application schema and migration timeline serve all modules; module ownership is expressed through schema files and repositories rather than separate PostgreSQL schemas.
 - Explicit reviewed SQL owns exclusion and range constraints, extensions, advisory and ordered row locks, outbox claims, online DDL, specialized or deferrable constraints, roles and grants, append-only audit protection, and SQLSTATE retry classification.
-- Deployment verifies the migration ledger. CI tests clean installation and upgrade from the preceding schema, while Staging and post-restore Production use a read-only normalized schema comparison for drift.
+- Deployment verifies the migration ledger. CI tests clean installation and upgrade from the preceding schema, while release rehearsal and post-restore Production use a read-only normalized schema comparison for drift.
 - Migrations run once in a locked release job before compatible application traffic and never from a Next.js process startup, Server Action, or request.
 - Production schema evolution is forward-only expand-contract. Application rollback remains compatible with the expanded schema, and destructive cleanup occurs in a later verified release after backup.
 - Repository, constraint, lock, transaction, migration, and outbox tests run against the same PostgreSQL major version as Production rather than SQLite or PGlite.
@@ -297,7 +297,7 @@ Business rules belong to framework-independent domain and application modules ra
 - Clerk Hobby supplies invite-only Admin authentication without mandatory MFA. PostgreSQL remains authoritative for authorization, and risky capabilities stay disabled until the required Security Review.
 - Resend Free initially carries transactional invitations and operational email. A free external uptime service checks public, Admin, readiness, and Cron heartbeat paths.
 - The low-traffic cost model is approximately USD 13/month at the service minimum and approximately USD 23/month with Neon's typical Launch usage, excluding domain, tax, and overages. USD 20 triggers a warning and recurring cost above USD 25 requires explicit approval.
-- Local Development is free. Shared Staging uses Render Free, Neon Free, a separate Clerk Development application, separate R2 resources, and synthetic data; no production secrets or personal data enter it.
+- Local Development is free. Runtime-changing pull requests use Preview deployments with synthetic or anonymized resources isolated from Production. A permanent shared Staging environment is deferred until coordinated acceptance or migration risk justifies it.
 - Production deployment promotes `develop` through a reviewed pull request to `main`, runs one locked backward-compatible migration step, and requires manual approval. Code may roll back; database changes move forward through expand-contract migrations.
 - The complete environment, credential, backup, logging, failure-mode, ownership, and release-gate design is documented in [the production infrastructure blueprint](./docs/architecture/production-infrastructure.md) and ADR-0026.
 
@@ -314,7 +314,7 @@ Business rules belong to framework-independent domain and application modules ra
 - Permanent federation archives for Published competition history and Audit History, with time-limited retention and review for private registration data, supporting documents, Privacy Requests, abandoned drafts, and orphaned Media Assets.
 - Application logs retained for 30 days, Security Events for 90 days, and aggregated non-personal operational metrics for 12 months; Player personal data is excluded from logs.
 - Legal Holds that suspend scheduled deletion for information required by a protest, investigation, or legal obligation and record the reason in Audit History.
-- Co-located European production services, encrypted connections, and isolated Development, Preview/Staging, and Production data, identity, storage, secrets, and webhook boundaries.
+- Co-located European production services, encrypted connections, and isolated Development, Preview, and Production data, identity, storage, secrets, and webhook boundaries.
 - Synthetic or anonymized non-production Player data; Production personal data is never copied into preview environments.
 - Ukrainian-only MVP presentation using Unicode, `DD.MM.YYYY`, 24-hour time, `Europe/Kyiv` display, and UTC storage, while user-facing strings remain externalizable.
 - WCAG 2.2 AA as the accessibility acceptance target for both the public Portal and Admin interface.
@@ -346,6 +346,10 @@ The checked-in application is still the original Vite, React, Redux Toolkit, and
 
 The migration to Next.js and PostgreSQL has been designed but not yet implemented. Existing presentational components and useful tests may be migrated selectively; simulator-specific state and behavior will be retired.
 
+The transition is incremental but not dual-runtime. The working prototype will be frozen behind the `redux-prototype-final` Git tag, then the repository root will move to a minimal Next.js foundation. The first functional Portal milestone is a PostgreSQL-backed read-only path from Competition and Season through Teams, one Fixture Round, Match Results, and Standings. Later milestones add the Admin/write foundation, editorial publishing, competition setup, format and schedule building, results and progression, rosters, operational readiness, and the official launch.
+
+Each capability is completed as a vertical slice, including its migration, domain/application rules, repositories and queries, authorized Admin workflow, public projection, audit/outbox behavior, cache invalidation, and tests. Hard-coded or browser-persisted prototype data will not be imported. See [the simulator-to-Portal cutover blueprint](./docs/architecture/simulator-to-portal-cutover.md) and [ADR-0027](./docs/adr/0027-replace-the-redux-simulator-through-vertical-slices.md).
+
 Current prototype commands:
 
 ```bash
@@ -362,5 +366,6 @@ pnpm build
 - [Central data architecture research](./docs/research/central-data-architecture-options.md)
 - [Production infrastructure research](./docs/research/production-infrastructure-options.md)
 - [Production infrastructure blueprint](./docs/architecture/production-infrastructure.md)
+- [Simulator-to-Portal cutover blueprint](./docs/architecture/simulator-to-portal-cutover.md)
 
 The accepted application shape is recorded in [ADR-0011](./docs/adr/0011-use-a-single-nextjs-modular-monolith.md). It supersedes the earlier decision to build a separate REST API.
