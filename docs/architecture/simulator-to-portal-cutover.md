@@ -87,9 +87,17 @@ No adapter will expose the old Redux graph through the new application. New Serv
 
 **Rollback:** disable Admin routes and revert compatible code; preserve Audit History and outbox records.
 
-### 5. Editorial Slice
+### 5. Media Foundation
 
-**Depends on:** Admin and Write Foundation plus public Media Asset storage.
+**Depends on:** Admin and Write Foundation.
+
+**Deliver:** the Cloudflare R2 adapter, direct upload, verification, Media Asset metadata, bounded derivative processing, public/private key separation, signed-access abstraction, purge behavior, and synthetic integration tests.
+
+**Exit:** public Media Assets can be uploaded, verified, transformed, served, withdrawn, and purged through provider-neutral application contracts. Private access is proven only with synthetic files until the Security Review passes.
+
+### 6. Editorial Slice
+
+**Depends on:** Media Foundation.
 
 **Deliver:** structured News Article Draft, validated public Media Asset upload, preview, publish, revision, archive, public News pages, homepage projection, Audit History, outbox, and cache invalidation. Private Documents remain out of scope.
 
@@ -97,7 +105,7 @@ No adapter will expose the old Redux graph through the new application. New Serv
 
 **Parallelism:** this slice may proceed alongside sporting slices after both share the write foundation.
 
-### 6. Competition Setup
+### 7. Competition Setup
 
 **Depends on:** Admin and Write Foundation.
 
@@ -105,7 +113,7 @@ No adapter will expose the old Redux graph through the new application. New Serv
 
 **Exit:** an Admin can prepare a valid Season with approved participants while every transition and public projection follows the accepted lifecycle rules.
 
-### 7. Format and Schedule Builder
+### 8. Format and Schedule Builder
 
 **Depends on:** Competition Setup.
 
@@ -113,7 +121,7 @@ No adapter will expose the old Redux graph through the new application. New Serv
 
 **Exit:** representative formats can be configured, validated, published, revised, and reconstructed from persisted versions. Any route-scoped Redux buffer remains disposable and server-authoritative autosave handles version conflicts.
 
-### 8. Results and Progression
+### 9. Results and Progression
 
 **Depends on:** Format and Schedule Builder.
 
@@ -121,15 +129,15 @@ No adapter will expose the old Redux graph through the new application. New Serv
 
 **Exit:** unresolved protests or rulings block affected progression; corrections preserve prior decisions; final snapshots identify the exact rules and results used.
 
-### 9. Rosters and Eligibility
+### 10. Rosters and Eligibility
 
-**Depends on:** Season Entries. It may begin after milestone 6 and run alongside milestones 7-8, but does not block format or schedule work.
+**Depends on:** Season Entries. It may begin after milestone 7 and run alongside milestones 8-9, but does not block format or schedule work.
 
 **Deliver:** Player Identity, Season Rosters, Registration and Transfer Windows, effective-dated Roster Entries, Legionnaire classification and birth-date-based allowances, eligibility rulings, privacy-safe public profiles, and required Private Document controls.
 
-**Exit:** registration, transfer, quota, exception, privacy, and minor-publication scenarios pass domain, authorization, and browser acceptance tests.
+**Exit:** registration, transfer, quota, exception, privacy, and minor-publication scenarios pass domain, authorization, and browser acceptance tests. Private Document behavior is verified with synthetic files; real Production documents remain disabled until the Security Review passes.
 
-### 10. Operational Readiness
+### 11. Operational Readiness
 
 **Depends on:** all MVP slices required for official use.
 
@@ -137,7 +145,7 @@ No adapter will expose the old Redux graph through the new application. New Serv
 
 **Exit:** every applicable release gate below has recorded evidence. A technically deployable but incomplete Portal is not described as the federation's official source.
 
-### 11. Official Launch
+### 12. Official Launch
 
 **Depends on:** Operational Readiness and domain acceptance of the complete agreed MVP.
 
@@ -163,6 +171,8 @@ A slice is complete only when every applicable item is present:
 
 UI completion alone is not a completed slice.
 
+The read-only Public Walking Skeleton is the deliberate exception to items 4 and 6: it has no Admin mutation, Audit History, idempotency, or outbox requirement. It must still establish the final PostgreSQL, application-query, Server Component, Published-only, cache, and test boundaries.
+
 ## Data strategy
 
 ### Synthetic fixtures
@@ -186,6 +196,8 @@ A permanent shared Staging environment is deferred to control cost and operation
 Unfinished modules are absent from navigation and inaccessible rather than presented as empty or “coming soon.” Simple server-side configuration may control deployment visibility; Draft, Private, and Public remain domain states rather than technical feature flags. Demo deployments use synthetic data and `noindex` and are never described as the official federation source.
 
 ## Verification and release gates
+
+The canonical scenario catalogue, four promotion gates, CI job boundaries, performance budgets, evidence policy, and launch procedure are defined in [the end-to-end acceptance blueprint](./end-to-end-acceptance.md).
 
 Every milestone must leave `develop` deployable and pass the applicable subset of:
 
@@ -215,4 +227,3 @@ The developer owns technical evidence. The federation representative or acting A
 Track each milestone with a parent issue and each vertical slice with a small issue or tightly related issue group. Every implementation issue states scope, dependencies, acceptance criteria, tests, and `Out of scope`. Avoid both module-sized “implement everything” tickets and file-by-file tickets.
 
 The available streams are Editorial/Public Media, Sporting Workflows, and Operations/Testing/Deployment. With one developer, limit work in progress to one primary slice plus one small infrastructure or testing task.
-

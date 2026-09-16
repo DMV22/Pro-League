@@ -346,9 +346,11 @@ The checked-in application is still the original Vite, React, Redux Toolkit, and
 
 The migration to Next.js and PostgreSQL has been designed but not yet implemented. Existing presentational components and useful tests may be migrated selectively; simulator-specific state and behavior will be retired.
 
-The transition is incremental but not dual-runtime. The working prototype will be frozen behind the `redux-prototype-final` Git tag, then the repository root will move to a minimal Next.js foundation. The first functional Portal milestone is a PostgreSQL-backed read-only path from Competition and Season through Teams, one Fixture Round, Match Results, and Standings. Later milestones add the Admin/write foundation, editorial publishing, competition setup, format and schedule building, results and progression, rosters, operational readiness, and the official launch.
+The transition is incremental but not dual-runtime. The working prototype will be frozen behind the `redux-prototype-final` Git tag, then the repository root will move to a minimal Next.js foundation. The first functional Portal milestone is a PostgreSQL-backed read-only path from Competition and Season through Teams, one Fixture Round, Match Results, and Standings. Later milestones add the Admin/write foundation, Media Foundation, editorial publishing, competition setup, format and schedule building, results and progression, rosters, operational readiness, and the official launch.
 
 Each capability is completed as a vertical slice, including its migration, domain/application rules, repositories and queries, authorized Admin workflow, public projection, audit/outbox behavior, cache invalidation, and tests. Hard-coded or browser-persisted prototype data will not be imported. See [the simulator-to-Portal cutover blueprint](./docs/architecture/simulator-to-portal-cutover.md) and [ADR-0027](./docs/adr/0027-replace-the-redux-simulator-through-vertical-slices.md).
+
+Acceptance uses four blocking levels: pull request, milestone, Production deployment, and Official launch. A deterministic Golden Season supplies stable expected Standings, progression, scheduling, roster, editorial, audit, and cache outcomes; ten launch-blocking journey groups plus one cross-module Federation Season Day cover the critical happy and failure paths. Lighthouse, browser/accessibility, load, Security Review, backup/restore, waiver, evidence, release-candidate, and post-launch monitoring rules are defined in [the end-to-end acceptance blueprint](./docs/architecture/end-to-end-acceptance.md).
 
 Current prototype commands:
 
@@ -367,5 +369,6 @@ pnpm build
 - [Production infrastructure research](./docs/research/production-infrastructure-options.md)
 - [Production infrastructure blueprint](./docs/architecture/production-infrastructure.md)
 - [Simulator-to-Portal cutover blueprint](./docs/architecture/simulator-to-portal-cutover.md)
+- [End-to-end acceptance and release gates](./docs/architecture/end-to-end-acceptance.md)
 
 The accepted application shape is recorded in [ADR-0011](./docs/adr/0011-use-a-single-nextjs-modular-monolith.md). It supersedes the earlier decision to build a separate REST API.

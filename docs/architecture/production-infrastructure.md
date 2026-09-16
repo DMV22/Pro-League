@@ -52,7 +52,7 @@ The service minimum is approximately USD 13/month and the planning figure is app
 | Preview | Reviewable deployment for a runtime-changing pull request | Resettable non-production PostgreSQL with synthetic data | Clerk Development | Dedicated non-production buckets and test credentials | Manually triggered; no paid Cron required |
 | Production | Render Starter from `main` | Dedicated Neon Launch project | Clerk Hobby Production | Separate Production buckets, tokens, domain and Resend credentials | One paid Render Cron |
 
-No non-production boundary receives Production secrets, webhooks, private files, or personal data. Preview resources may sleep, cold-start, reset, or be rebuilt and are never a recovery copy. Every pull request runs CI; runtime-changing pull requests receive a reviewable Preview, while documentation-only changes do not allocate an application environment. A permanent shared Staging boundary is deferred until coordinated federation acceptance, team growth, or migration/import risk justifies it.
+No non-production boundary receives Production secrets, webhooks, private files, or personal data. Preview resources may sleep, cold-start, reset, or be rebuilt and are never a recovery copy. Every pull request runs CI; runtime-changing pull requests receive a reviewable Preview initialized from a deterministic synthetic baseline, while documentation-only changes do not allocate an application environment. Preview databases and object namespaces are disposable and removed when the pull request closes; failed cleanup alerts the Technical Operator. A permanent shared Staging boundary is deferred until coordinated federation acceptance, team growth, or migration/import risk justifies it.
 
 Provider accounts may initially belong to the Technical Operator. Before federation adoption, Production billing and owner access move to federation-controlled accounts or newly created federation resources, and the operator receives an individual account rather than a shared password.
 
@@ -75,6 +75,8 @@ The delivery path is:
 7. Smoke checks verify a public page, Admin authentication and authorization, PostgreSQL reads, R2 reads, and the dispatcher heartbeat.
 
 Application code may roll back to the previous successful Render deployment. Database migrations do not run down automatically: schema changes follow expand, backfill, switch, verify, and later contract phases so the previous application remains compatible. High-risk data changes require a fresh recovery point and an isolated rehearsal.
+
+Release candidates use immutable tags such as `v0.1.0-rc.1`; a fix creates a new tag rather than moving an accepted one. Provider-specific checks occur in private pre-launch Production, while destructive migration, purge, load, and restore drills use isolated disposable resources. After public launch, Production receives only non-destructive smoke/read checks.
 
 A future `render.yaml` declares service type, region, branch, build/start/pre-deploy commands, health check, and environment-variable names. Secret values never enter Git. Provider dashboards that are not fully represented by the Blueprint receive a versioned setup and recovery runbook.
 
@@ -155,7 +157,7 @@ The runtime remains standard Next.js on Node.js, persistence uses PostgreSQL thr
 
 ## Production acceptance gates
 
-Production is not ready until all applicable gates pass:
+The complete four-level gate model, stable CI jobs, acceptance journeys, browser and performance matrices, severity policy, retained evidence, and joint go/no-go are defined in [the end-to-end acceptance blueprint](./end-to-end-acceptance.md). Production is not ready until all applicable gates pass:
 
 - CI, empty-database migration, previous-release upgrade, drift, and rollback-compatibility checks succeed;
 - Render health checks and the public/Admin smoke paths succeed;
@@ -168,3 +170,5 @@ Production is not ready until all applicable gates pass:
 - a representative workload remains within 512 MB and the accepted latency/capacity targets;
 - the Technical Operator, alert destination, incident path, account ownership, cost alerts, domain, and secret-recovery inventory are documented;
 - the ADR-0025 Security Review is complete before any of its trigger capabilities is enabled.
+
+The Technical Operator actively monitors the first 60 minutes after launch and the Admin revalidates key Official information. Enhanced monitoring continues for 24 hours; launch is complete only when no unresolved Severity 1 or 2 issue remains. Authorization failure, disclosure or corruption, incorrect Official information, incompatible schema behavior, unsafe dispatcher behavior, or sustained critical availability failure triggers fail-closed handling and schema-compatible code rollback while database repair moves forward.
