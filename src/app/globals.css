@@ -18,29 +18,106 @@ body {
 
 body {
   margin: 0;
+  background: #07130e;
+}
+
+a {
+  color: inherit;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #9af7b6;
+  outline-offset: 4px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 1rem;
+  left: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #f4f7f5;
+  color: #07130e;
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.site-shell,
+.admin-shell {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.site-shell {
   background:
     radial-gradient(circle at 15% 20%, rgb(35 119 72 / 35%), transparent 32rem),
     linear-gradient(145deg, #07130e, #0c2118 55%, #08150f);
 }
 
-.portal-shell {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 2rem;
+.site-header,
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem clamp(1rem, 5vw, 4rem);
+  border-bottom: 1px solid rgb(139 214 166 / 20%);
 }
 
-.portal-card {
+.brand-link,
+.nav-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  border-radius: 0.5rem;
+}
+
+.brand-link {
+  color: #f4f7f5;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.nav-link {
+  padding-inline: 0.75rem;
+  color: #c4d1c8;
+  font-weight: 600;
+  text-underline-offset: 0.3rem;
+}
+
+.nav-link:hover {
+  color: #ffffff;
+}
+
+.site-main {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: clamp(1rem, 5vw, 4rem);
+}
+
+.portal-card,
+.admin-card,
+.feedback-page {
   width: min(100%, 48rem);
   padding: clamp(2rem, 6vw, 4.5rem);
   border: 1px solid rgb(139 214 166 / 25%);
   border-radius: 1.5rem;
-  background: rgb(9 31 21 / 82%);
+  background: rgb(9 31 21 / 88%);
   box-shadow: 0 2rem 5rem rgb(0 0 0 / 28%);
-  backdrop-filter: blur(1rem);
 }
 
-.portal-kicker {
+.portal-kicker,
+.admin-eyebrow {
   margin: 0 0 1rem;
   color: #79e69e;
   font-size: 0.8rem;
@@ -49,15 +126,22 @@ body {
   text-transform: uppercase;
 }
 
-.portal-card h1 {
-  max-width: 14ch;
+.portal-card h1,
+.admin-card h1,
+.feedback-page h1 {
   margin: 0;
   font-size: clamp(2.25rem, 7vw, 4.75rem);
   line-height: 0.98;
   letter-spacing: -0.05em;
 }
 
-.portal-summary {
+.portal-card h1 {
+  max-width: 14ch;
+}
+
+.portal-summary,
+.admin-card > p:not(.portal-kicker),
+.feedback-page > p:not(.portal-kicker) {
   max-width: 40rem;
   margin: 1.75rem 0;
   color: #c4d1c8;
@@ -83,12 +167,94 @@ body {
   content: '';
 }
 
+.site-footer {
+  padding: 1.25rem clamp(1rem, 5vw, 4rem);
+  border-top: 1px solid rgb(139 214 166 / 16%);
+  color: #aab9af;
+  font-size: 0.875rem;
+}
+
+.admin-shell {
+  background: #0b1118;
+}
+
+.admin-header {
+  align-items: flex-end;
+  border-color: #263241;
+  background: #101923;
+}
+
+.admin-eyebrow {
+  margin-bottom: 0.25rem;
+  color: #7dd3fc;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-main {
+  display: grid;
+  flex: 1;
+  place-items: start center;
+  padding: clamp(1rem, 5vw, 4rem);
+}
+
+.admin-card {
+  border-color: #334155;
+  background: #111c27;
+  box-shadow: 0 2rem 5rem rgb(0 0 0 / 24%);
+}
+
+.admin-notice {
+  padding: 1rem;
+  border-left: 4px solid #38bdf8;
+  background: rgb(14 116 144 / 20%);
+}
+
+.route-status {
+  margin: auto;
+  padding: 2rem;
+  color: #d7e4da;
+  font-weight: 700;
+}
+
+.feedback-page {
+  margin: clamp(1rem, 8vh, 6rem) auto;
+}
+
+.primary-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #79e69e;
+  color: #07130e;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary-action:hover {
+  background: #a8f3bd;
+}
+
 @media (max-width: 40rem) {
-  .portal-shell {
-    padding: 1rem;
+  .site-header,
+  .admin-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .portal-card {
+  .portal-card,
+  .admin-card,
+  .feedback-page {
     border-radius: 1rem;
   }
 }
