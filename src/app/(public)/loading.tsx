@@ -1,9 +1,6 @@
+import { LoadingState } from '@/components/ui/feedback-state'
 import { uiText } from '@/shared/i18n/ui-text'
 
 export default function PublicLoading() {
-  return (
-    <p className="route-status" role="status" aria-live="polite">
-      {uiText.feedback.loading}
-    </p>
-  )
+  return <LoadingState label={uiText.feedback.loading} />
 }

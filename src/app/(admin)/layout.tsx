@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </Link>
         </nav>
       </header>
-      <main id="main-content" className="admin-main">
+      <main id="main-content" className="admin-main" tabIndex={-1}>
         {children}
       </main>
     </div>
