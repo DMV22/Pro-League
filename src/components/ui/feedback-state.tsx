@@ -1,25 +1,32 @@
-import type { ReactNode } from "react"
-import { AlertCircleIcon, InboxIcon } from "lucide-react"
+import type { ReactNode } from 'react'
+import { AlertCircleIcon, InboxIcon } from 'lucide-react'
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 type FeedbackStateProps = Readonly<{
   title: string
   description?: string
   action?: ReactNode
   className?: string
+  headingLevel?: 1 | 2 | 3
 }>
 
-function LoadingState({
-  label,
-  className,
-}: Readonly<{ label: string; className?: string }>) {
+function FeedbackHeading({
+  children,
+  level = 2,
+}: Readonly<{ children: ReactNode; level?: 1 | 2 | 3 }>) {
+  const Heading = level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3'
+
+  return <Heading className="text-base leading-snug font-medium">{children}</Heading>
+}
+
+function LoadingState({ label, className }: Readonly<{ label: string; className?: string }>) {
   return (
     <div
-      className={cn("w-full max-w-3xl space-y-4", className)}
+      className={cn('w-full max-w-3xl space-y-4', className)}
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -32,12 +39,12 @@ function LoadingState({
   )
 }
 
-function EmptyState({ title, description, action, className }: FeedbackStateProps) {
+function EmptyState({ title, description, action, className, headingLevel }: FeedbackStateProps) {
   return (
-    <Card className={cn("w-full max-w-xl border-dashed text-center", className)}>
+    <Card className={cn('w-full max-w-xl border-dashed text-center', className)}>
       <CardHeader className="items-center">
         <InboxIcon className="size-8 text-muted-foreground" aria-hidden="true" />
-        <CardTitle>{title}</CardTitle>
+        <FeedbackHeading level={headingLevel}>{title}</FeedbackHeading>
       </CardHeader>
       {(description || action) && (
         <CardContent className="flex flex-col items-center gap-4 text-muted-foreground">
@@ -49,11 +56,13 @@ function EmptyState({ title, description, action, className }: FeedbackStateProp
   )
 }
 
-function ErrorState({ title, description, action, className }: FeedbackStateProps) {
+function ErrorState({ title, description, action, className, headingLevel }: FeedbackStateProps) {
   return (
-    <Alert variant="destructive" className={cn("max-w-xl", className)}>
+    <Alert variant="destructive" className={cn('max-w-xl', className)}>
       <AlertCircleIcon aria-hidden="true" />
-      <AlertTitle>{title}</AlertTitle>
+      <AlertTitle>
+        <FeedbackHeading level={headingLevel}>{title}</FeedbackHeading>
+      </AlertTitle>
       {description && <AlertDescription>{description}</AlertDescription>}
       {action && <div className="col-start-2 mt-3">{action}</div>}
     </Alert>

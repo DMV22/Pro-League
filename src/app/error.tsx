@@ -17,14 +17,11 @@ export default function RootError({ error, retry }: RootErrorProps) {
   }, [error])
 
   return (
-    <main
-      id="main-content"
-      className="grid min-h-screen place-items-center p-4"
-      tabIndex={-1}
-    >
+    <main id="main-content" className="grid min-h-screen place-items-center p-4" tabIndex={-1}>
       <ErrorState
         title={uiText.feedback.errorTitle}
         description={uiText.feedback.errorDescription}
+        headingLevel={1}
         action={
           <Button type="button" variant="outline" onClick={retry}>
             {uiText.feedback.retry}
