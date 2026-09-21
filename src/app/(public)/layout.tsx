@@ -20,7 +20,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           </Link>
         </nav>
       </header>
-      <main id="main-content" className="site-main">
+      <main id="main-content" className="site-main" tabIndex={-1}>
         {children}
       </main>
       <footer className="site-footer">{uiText.public.footer}</footer>
