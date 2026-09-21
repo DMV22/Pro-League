@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+
+services:
+  - type: web
+    name: pro-league-development
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: develop
+    autoDeployTrigger: checksPass
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /
+    maxShutdownDelaySeconds: 30
+    previews:
+      generation: automatic
+    buildFilter:
+      paths:
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - next.config.ts
+        - tsconfig.json
+        - postcss.config.mjs
+        - render.yaml
+        - public/**
+        - src/**
+      ignoredPaths:
+        - .agents/**
+        - .github/**
+        - docs/**
+        - tests/**
+        - '**/*.md'
+        - skills-lock.json
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'
