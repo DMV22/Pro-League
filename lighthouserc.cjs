@@ -1,19 +1,28 @@
+const externalBaseUrl = process.env.LHCI_BASE_URL
+const baseUrl = externalBaseUrl ? new URL(externalBaseUrl).origin : 'http://127.0.0.1:3200'
+const escapedBaseUrl = baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const collect = {
+  url: [`${baseUrl}/`, `${baseUrl}/admin`],
+  numberOfRuns: 3,
+  settings: {
+    chromeFlags: '--headless=new --no-sandbox',
+  },
+}
+
+if (!externalBaseUrl) {
+  collect.startServerCommand = 'pnpm start:lighthouse'
+  collect.startServerReadyPattern = 'Ready'
+  collect.startServerReadyTimeout = 120_000
+}
+
 module.exports = {
   ci: {
-    collect: {
-      startServerCommand: 'pnpm start:lighthouse',
-      startServerReadyPattern: 'Ready',
-      startServerReadyTimeout: 120_000,
-      url: ['http://127.0.0.1:3200/', 'http://127.0.0.1:3200/admin'],
-      numberOfRuns: 3,
-      settings: {
-        chromeFlags: '--headless=new --no-sandbox',
-      },
-    },
+    collect,
     assert: {
       assertMatrix: [
         {
-          matchingUrlPattern: '^http://127\\.0\\.0\\.1:3200/$',
+          matchingUrlPattern: `^${escapedBaseUrl}/$`,
           assertions: {
             'categories:performance': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
             'categories:accessibility': ['error', { aggregationMethod: 'median', minScore: 1 }],
@@ -31,7 +40,7 @@ module.exports = {
           },
         },
         {
-          matchingUrlPattern: '^http://127\\.0\\.0\\.1:3200/admin$',
+          matchingUrlPattern: `^${escapedBaseUrl}/admin$`,
           assertions: {
             'categories:performance': ['error', { aggregationMethod: 'median', minScore: 0.85 }],
             'categories:accessibility': ['error', { aggregationMethod: 'median', minScore: 1 }],
