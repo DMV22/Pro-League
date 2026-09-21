@@ -1,10 +1,16 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
+import { Geist } from 'next/font/google'
 
 import { appLocale, openGraphLocale } from '@/shared/i18n/config'
 import { uiText } from '@/shared/i18n/ui-text'
 
 import './globals.css'
+
+const geist = Geist({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-geist-sans',
+})
 
 export const metadata: Metadata = {
   applicationName: uiText.brand.name,
@@ -28,7 +34,7 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang={appLocale.htmlLanguage}>
+    <html lang={appLocale.htmlLanguage} className={geist.variable}>
       <body>
         <a className="skip-link" href="#main-content">
           {uiText.accessibility.skipToContent}
