@@ -4,6 +4,7 @@ services:
   - type: web
     name: pro-league-development
     runtime: node
+    repo: https://github.com/DMV22/Pro-League.git
     region: frankfurt
     plan: free
     branch: develop
@@ -11,7 +12,6 @@ services:
     buildCommand: pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     healthCheckPath: /
-    maxShutdownDelaySeconds: 30
     previews:
       generation: automatic
     buildFilter:
