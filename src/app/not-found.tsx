@@ -11,14 +11,11 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main
-      id="main-content"
-      className="grid min-h-screen place-items-center p-4"
-      tabIndex={-1}
-    >
+    <main id="main-content" className="grid min-h-screen place-items-center p-4" tabIndex={-1}>
       <EmptyState
         title={uiText.notFound.title}
         description={uiText.notFound.description}
+        headingLevel={1}
         action={
           <Button asChild>
             <Link href="/">{uiText.notFound.backHome}</Link>

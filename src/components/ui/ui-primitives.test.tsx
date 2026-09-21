@@ -1,43 +1,31 @@
 /** @vitest-environment jsdom */
 
-import "@testing-library/jest-dom/vitest"
+import '@testing-library/jest-dom/vitest'
 
-import { render, screen, waitFor } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
-import axe from "axe-core"
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import axe from 'axe-core'
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { ErrorState, LoadingState } from "@/components/ui/feedback-state"
-import {
-  Form,
-  FormDescription,
-  FormField,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from '@/components/ui/dialog'
+import { ErrorState, LoadingState } from '@/components/ui/feedback-state'
+import { Form, FormDescription, FormField, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -46,8 +34,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 function PrimitiveFixture() {
   return (
@@ -120,35 +108,35 @@ function PrimitiveFixture() {
   )
 }
 
-describe("UI primitives", () => {
-  it("has no detectable accessibility violations in shared states and controls", async () => {
+describe('UI primitives', () => {
+  it('has no detectable accessibility violations in shared states and controls', async () => {
     const { container } = render(<PrimitiveFixture />)
 
     const results = await axe.run(container, {
       rules: {
         // JSDOM has no canvas implementation; contrast is covered by browser checks.
-        "color-contrast": { enabled: false },
+        'color-contrast': { enabled: false },
       },
     })
 
     expect(results.violations).toHaveLength(0)
   })
 
-  it("supports keyboard navigation between tabs", async () => {
+  it('supports keyboard navigation between tabs', async () => {
     const user = userEvent.setup()
     render(<PrimitiveFixture />)
 
-    const overviewTab = screen.getByRole("tab", { name: "Огляд" })
-    const matchesTab = screen.getByRole("tab", { name: "Матчі" })
+    const overviewTab = screen.getByRole('tab', { name: 'Огляд' })
+    const matchesTab = screen.getByRole('tab', { name: 'Матчі' })
 
     overviewTab.focus()
-    await user.keyboard("{ArrowRight}")
+    await user.keyboard('{ArrowRight}')
 
     expect(matchesTab).toHaveFocus()
-    expect(matchesTab).toHaveAttribute("aria-selected", "true")
+    expect(matchesTab).toHaveAttribute('aria-selected', 'true')
   })
 
-  it("opens and dismisses a labelled dialog with the keyboard", async () => {
+  it('opens and dismisses a labelled dialog with the keyboard', async () => {
     const user = userEvent.setup()
     render(
       <Dialog>
@@ -162,12 +150,12 @@ describe("UI primitives", () => {
       </Dialog>,
     )
 
-    await user.click(screen.getByRole("button", { name: "Відкрити діалог" }))
-    expect(screen.getByRole("dialog", { name: "Підтвердження" })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Відкрити діалог' }))
+    expect(screen.getByRole('dialog', { name: 'Підтвердження' })).toBeVisible()
 
-    await user.keyboard("{Escape}")
+    await user.keyboard('{Escape}')
     await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
   })
 })

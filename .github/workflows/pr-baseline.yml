@@ -1,0 +1,172 @@
+name: PR baseline
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: pr-baseline-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.scope.outputs.runtime }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: scope
+        name: Detect runtime changes
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "origin/${GITHUB_BASE_REF}...HEAD" -- . \
+            ':(exclude)**/*.md' \
+            ':(exclude)docs/**'; then
+            echo "runtime=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  quality:
+    name: quality
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm quality
+
+  types:
+    name: types
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm types
+
+  unit:
+    name: unit
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm unit
+
+  build:
+    name: build
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm build
+
+  e2e-chromium:
+    name: e2e-chromium
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm e2e:chromium
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-e2e-${{ github.run_id }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  accessibility:
+    name: accessibility
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm accessibility
+      - name: Upload accessibility failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-accessibility-${{ github.run_id }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  lighthouse:
+    name: lighthouse
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm build
+      - run: pnpm lighthouse
+      - name: Upload Lighthouse evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-${{ github.run_id }}
+          path: artifacts/lighthouse
+          if-no-files-found: ignore
+          retention-days: 7
