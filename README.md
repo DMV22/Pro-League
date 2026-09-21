@@ -33,6 +33,7 @@ Scheduled work: Render Cron -> PostgreSQL job/outbox claims
 - Clerk Organizations and Clerk role metadata are not authorization sources in the MVP; PostgreSQL owns the Admin access state.
 - **Cloudflare R2** holds uploaded media, private documents, and encrypted operational archives while PostgreSQL holds domain metadata and associations.
 - **Render** runs one paid Next.js web service and one scheduled dispatcher in Production.
+- Pull-request application previews use the isolated Free Render Service Preview baseline documented in [the Preview service runbook](./docs/operations/preview-service.md); full-stack Preview Environments remain deferred.
 - **Resend** sends invitation and operational transactional email.
 - **Server Components** read through server-only application services and repositories.
 - **Server Actions** execute mutations initiated by the Admin interface.
