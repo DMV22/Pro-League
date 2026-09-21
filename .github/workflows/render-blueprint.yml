@@ -32,4 +32,15 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/render-oss/cli/main/bin/install.sh | sh
           echo "$HOME/.render/bin" >> "$GITHUB_PATH"
       - name: Validate Render Blueprint
-        run: render blueprints validate
+        shell: bash
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_WORKSPACE_ID: ${{ vars.RENDER_WORKSPACE_ID }}
+        run: |
+          if [[ -z "$RENDER_API_KEY" || -z "$RENDER_WORKSPACE_ID" ]]; then
+            echo "::error::Set RENDER_API_KEY as a GitHub Actions secret and RENDER_WORKSPACE_ID as a repository variable."
+            exit 1
+          fi
+
+          render --version
+          render blueprints validate render.yaml --workspace "$RENDER_WORKSPACE_ID"
