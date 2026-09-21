@@ -11,7 +11,6 @@ services:
     buildCommand: pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     healthCheckPath: /
-    maxShutdownDelaySeconds: 30
     previews:
       generation: automatic
     buildFilter:
