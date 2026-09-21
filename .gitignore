@@ -9,11 +9,15 @@ lerna-debug.log*
 
 node_modules
 .next
+.lighthouseci
 next-env.d.ts
 out
 *.tsbuildinfo
 dist
 dist-ssr
+artifacts
+playwright-report
+test-results
 *.local
 
 # Editor directories and files
