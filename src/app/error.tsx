@@ -2,8 +2,6 @@
 
 import { useEffect } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { ErrorState } from '@/components/ui/feedback-state'
 import { uiText } from '@/shared/i18n/ui-text'
 
 type RootErrorProps = Readonly<{
@@ -18,16 +16,13 @@ export default function RootError({ error, retry }: RootErrorProps) {
 
   return (
     <main id="main-content" className="grid min-h-screen place-items-center p-4" tabIndex={-1}>
-      <ErrorState
-        title={uiText.feedback.errorTitle}
-        description={uiText.feedback.errorDescription}
-        headingLevel={1}
-        action={
-          <Button type="button" variant="outline" onClick={retry}>
-            {uiText.feedback.retry}
-          </Button>
-        }
-      />
+      <section className="portal-card" role="alert" aria-labelledby="error-title">
+        <h1 id="error-title">{uiText.feedback.errorTitle}</h1>
+        <p className="portal-summary">{uiText.feedback.errorDescription}</p>
+        <button className="error-action" type="button" onClick={retry}>
+          {uiText.feedback.retry}
+        </button>
+      </section>
     </main>
   )
 }
