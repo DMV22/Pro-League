@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import path from 'path'
@@ -6,15 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    babel({ presets: [reactCompilerPreset()] }),
-    tailwindcss()
-  ],
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
   resolve: {
-    alias: [{ find: "@", replacement: path.resolve("./src") }],
+    alias: [{ find: '@', replacement: path.resolve('./src') }],
   },
   test: {
     globals: true,
+    exclude: [...configDefaults.exclude, 'tests/e2e/**', 'tests/accessibility/**'],
   },
 })
