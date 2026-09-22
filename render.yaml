@@ -20,6 +20,7 @@ services:
         - pnpm-lock.yaml
         - pnpm-workspace.yaml
         - next.config.ts
+        - lighthouserc.cjs
         - tsconfig.json
         - postcss.config.mjs
         - render.yaml

@@ -1,6 +1,9 @@
 const externalBaseUrl = process.env.LHCI_BASE_URL
 const baseUrl = externalBaseUrl ? new URL(externalBaseUrl).origin : 'http://127.0.0.1:3200'
 const escapedBaseUrl = baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const isRenderServicePreview = /^pro-league-development-pr-\d+\.onrender\.com$/.test(
+  new URL(baseUrl).hostname,
+)
 
 const collect = {
   url: [`${baseUrl}/`, `${baseUrl}/admin`],
@@ -36,7 +39,10 @@ module.exports = {
               { aggregationMethod: 'median', maxNumericValue: 0.1 },
             ],
             'total-blocking-time': ['error', { aggregationMethod: 'median', maxNumericValue: 200 }],
-            'categories:seo': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
+            // Render deliberately sets noindex on PR Previews, so crawlability is not applicable there.
+            ...(!isRenderServicePreview && {
+              'categories:seo': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
+            }),
           },
         },
         {

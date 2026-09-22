@@ -59,6 +59,10 @@ The review evidence consists of:
 - Lighthouse evidence using the existing strict budgets;
 - confirmation that the response carries `X-Robots-Tag: noindex`.
 
+Render's `noindex` header makes Lighthouse's crawlability audit fail by design. For URLs matching `pro-league-development-pr-<number>.onrender.com`, the Lighthouse configuration omits only the public SEO category assertion. Local and non-Preview URLs still require SEO >= 90; Preview performance, accessibility, best-practices, LCP, CLS, and TBT budgets remain unchanged. Record the `noindex` response header separately as part of Preview acceptance.
+
+After Render reports a successful Service Preview deployment, the `Preview Lighthouse` GitHub Actions workflow runs the same budgets against its URL on a consistent CI runner and uploads the reports. Treat a failed Preview Lighthouse job as an acceptance blocker. This is a post-deploy check; do not make it a prerequisite for Render's `checksPass` deployment trigger.
+
 Free services may cold-start. Warm the public route once before recording review evidence; do not weaken timeouts or Lighthouse budgets to hide a persistent failure.
 
 ## Cleanup and failure handling
