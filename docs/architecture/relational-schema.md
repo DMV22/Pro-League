@@ -97,6 +97,7 @@ erDiagram
   season_rosters ||--o{ roster_entries : contains
   players ||--o{ roster_entries : registers
   roster_entries ||--o{ roster_registration_periods : covers
+  roster_registration_periods ||--o{ roster_registration_period_revisions : preserves
   roster_entries ||--o{ roster_entry_decisions : records
 ```
 
@@ -115,6 +116,7 @@ erDiagram
 | `season_applications` | Mutable root | Season, Team, submitted date, current state/decision, checklist snapshot and optimistic version |
 | `season_application_decisions` | Immutable decision | Recorded/review/approve/reject/withdraw/supersede actions with actor, reason and time |
 | `application_checklist_templates` | Reference/configuration | Versioned checklist owned by a Season |
+| `application_checklist_template_items` | Immutable template item | Ordered label and required flag belonging to one checklist template version |
 | `application_checklist_items` | Immutable application snapshot | Copied item label, required flag, review outcome, reviewer and exception reference |
 | `season_entries` | Mutable root | Season, Team, approved Application, participation state and optimistic version; unique Season/Team and approved Application |
 | `season_entry_state_transitions` | Immutable history | Register/suspend/reinstate/withdraw/disqualify history and reasons |
@@ -125,13 +127,14 @@ erDiagram
 | `season_rosters` | Mutable root | Season Entry, current Rule Set/readiness decision and optimistic version |
 | `roster_readiness_decisions` | Immutable decision | Ready/not-ready result, exact input versions and blocking reasons |
 | `roster_entries` | Mutable root | Roster, Player, state, playing position, classification/decision pointers and optimistic version |
-| `roster_registration_periods` | Immutable history | Player, Season, Roster Entry and `[start,end)` effective `daterange` |
+| `roster_registration_periods` | Authoritative mutable interval | Player, Season, Roster Entry, current approved/voided `[start,end)` effective `daterange`, current revision pointer and optimistic version |
+| `roster_registration_period_revisions` | Immutable history | Period, revision number, exact interval/state snapshot, opening/closure/correction/voiding action, actor, reason and superseded revision |
 | `roster_entry_decisions` | Immutable decision | Submit/activate/reject/end actions, actor, reason and Supporting Reference |
 | `legionnaire_classification_decisions` | Immutable decision | Local/Legionnaire, basis, actor, time and supersession relation |
 | `roster_transfers` | Mutable workflow root | Source/destination Roster Entries, Player, Season, Transfer Window, effective date, state, reason and version |
 | `roster_eligibility_rulings` | Immutable decision | Exact waived rule, period, reason, actor and Supporting Reference; other validations remain active |
 
-Registration periods use a GiST exclusion constraint on Player, Season, and effective `daterange` so approved periods cannot overlap. Roster-size and quota counts are protected by ordered row locks and revalidation, not a row-level `CHECK`.
+Approved current registration periods use a GiST exclusion constraint on Player, Season, and effective `daterange` so they cannot overlap. A transfer transaction locks the Player-season key and affected Rosters, shortens the source interval, inserts the destination interval, and writes immutable revisions for both changes. Historical revisions are not subject to the current-period exclusion because they intentionally preserve superseded intervals. Roster-size and quota counts are protected by ordered row locks and revalidation, not a row-level `CHECK`.
 
 ## Match module
 
