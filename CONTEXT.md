@@ -288,6 +288,10 @@ _Avoid_: Permanent squad, transfer list
 A Player's season-specific registration in one Season Roster, including the playing position applicable to that registration. It proceeds through Pending, Active, Rejected, or Ended and is approved independently from other registrations. Shirt numbers are not properties of the Player or Roster Entry because they may vary by Match.
 _Avoid_: Player, contract, permanent shirt number
 
+**Roster Registration Period**:
+The effective-dated interval during which a Player is registered through one Roster Entry in a Season. A transfer can end that interval as a new Team's non-overlapping interval begins; every change preserves the previous interval as a revision.
+_Avoid_: Roster Transfer Window, Player Identity
+
 **Roster Transfer**:
 The effective-dated change that ends a Player's active Roster Entry for one Team and creates one for another Team in the same Season during a Roster Transfer Window. The registrations may not overlap, and the Player's earlier Match participation remains attributed to the former Team.
 _Avoid_: Player sale, contract, transfer fee
