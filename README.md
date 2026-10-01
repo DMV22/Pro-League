@@ -42,6 +42,8 @@ Scheduled work: Render Cron -> PostgreSQL job/outbox claims
 
 Business rules belong to framework-independent domain and application modules rather than React components, Server Actions, or Route Handlers. This keeps a future extraction to a separate API possible without paying that operational cost during the MVP.
 
+Local PostgreSQL 18 setup and the current Drizzle migration boundary are documented in [the local database runbook](./docs/operations/local-postgres.md).
+
 ## MVP scope
 
 - Multiple Competitions and Seasons whose formats may contain one or more ordered stages.
