@@ -3,7 +3,12 @@ import { getTableConfig } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
 
 import * as competition from './competition/infrastructure/schema'
+import * as editorial from './editorial/infrastructure/schema'
+import * as governance from './governance/infrastructure/schema'
+import * as identityAccess from './identity-access/infrastructure/schema'
 import * as match from './match/infrastructure/schema'
+import * as media from './media/infrastructure/schema'
+import * as operations from './operations/infrastructure/schema'
 import * as registration from './registration/infrastructure/schema'
 import * as standingsProgression from './standings-progression/infrastructure/schema'
 
@@ -158,6 +163,92 @@ const standingsProgressionTables = [
   'final_knockout_evidence',
 ]
 
+const editorialTables = [
+  'news_articles',
+  'article_slugs',
+  'article_working_copies',
+  'article_revisions',
+  'article_state_transitions',
+  'article_categories',
+  'article_category_versions',
+  'article_category_state_transitions',
+  'article_competition_associations_working',
+  'article_season_associations_working',
+  'article_team_associations_working',
+  'article_match_associations_working',
+  'article_player_associations_working',
+  'article_competition_associations_revision',
+  'article_season_associations_revision',
+  'article_team_associations_revision',
+  'article_match_associations_revision',
+  'article_player_associations_revision',
+  'article_publication_schedules',
+  'article_recovery_snapshots',
+  'featured_article_decisions',
+  'article_media_placements_working',
+  'article_media_placements_revision',
+]
+
+const mediaTables = [
+  'media_upload_intents',
+  'media_assets',
+  'media_asset_metadata_versions',
+  'media_presentations',
+  'media_asset_variants',
+  'media_processing_attempts',
+  'media_asset_state_transitions',
+  'media_withdrawal_decisions',
+  'media_storage_tombstones',
+]
+
+const identityAccessTables = [
+  'admin_identities',
+  'admin_external_identities',
+  'admin_invitations',
+  'admin_access_grants',
+  'admin_access_state_transitions',
+  'admin_sessions',
+  'external_identity_events',
+  'external_sync_operations',
+  'reconciliation_items',
+  'privileged_operation_records',
+]
+
+const governanceTables = [
+  'audit_events',
+  'audit_event_targets',
+  'audit_event_changes',
+  'security_event_contexts',
+  'supporting_references',
+  'private_documents',
+  'private_document_versions',
+  'private_document_upload_intents',
+  'privacy_requests',
+  'privacy_request_transitions',
+  'privacy_request_items',
+  'privacy_request_actions',
+  'legal_holds',
+  'legal_hold_targets',
+  'retention_policies',
+  'retention_candidates',
+  'privacy_deletion_ledger',
+]
+
+const operationsTables = [
+  'outbox_messages',
+  'command_executions',
+  'scheduled_jobs',
+  'job_runs',
+  'cache_invalidation_intents',
+  'inbound_webhook_receipts',
+  'notification_deliveries',
+  'incident_records',
+  'incident_state_transitions',
+  'operational_alerts',
+  'recovery_verifications',
+  'restore_validations',
+]
+
 describe('module-owned schema coverage', () => {
   it('accounts for every Competition blueprint table', () => {
     expect(Object.values(competition).map(getTableName).sort()).toEqual(competitionTables.sort())
@@ -177,17 +268,53 @@ describe('module-owned schema coverage', () => {
     )
   })
 
+  it('accounts for every Editorial, Media, Access, Governance, and Operations table', () => {
+    expect(Object.values(editorial).map(getTableName).sort()).toEqual(editorialTables.sort())
+    expect(Object.values(media).map(getTableName).sort()).toEqual(mediaTables.sort())
+    expect(Object.values(identityAccess).map(getTableName).sort()).toEqual(
+      identityAccessTables.sort(),
+    )
+    expect(Object.values(governance).map(getTableName).sort()).toEqual(governanceTables.sort())
+    expect(Object.values(operations).map(getTableName).sort()).toEqual(operationsTables.sort())
+  })
+
   it('resolves every table and declared constraint inside the app schema', () => {
     for (const table of [
       ...Object.values(competition),
       ...Object.values(registration),
       ...Object.values(match),
       ...Object.values(standingsProgression),
+      ...Object.values(editorial),
+      ...Object.values(media),
+      ...Object.values(identityAccess),
+      ...Object.values(governance),
+      ...Object.values(operations),
     ]) {
       const configuration = getTableConfig(table)
       expect(configuration.schema).toBe('app')
       expect(configuration.columns.length).toBeGreaterThan(0)
     }
+  })
+
+  it('separates public Media from Private Documents and guards authorization and audit', () => {
+    const assetColumnNames = getTableConfig(media.mediaAssets).columns.map((column) => column.name)
+    expect(assetColumnNames).not.toContain('private_document_id')
+    const privateColumnNames = getTableConfig(governance.privateDocuments).columns.map(
+      (column) => column.name,
+    )
+    expect(privateColumnNames).not.toContain('media_asset_id')
+
+    const grantIndexes = getTableConfig(identityAccess.adminAccessGrants).indexes.map(
+      (value) => value.config.name,
+    )
+    expect(grantIndexes).toContain('admin_access_grants_current_uq')
+    const referenceChecks = getTableConfig(governance.supportingReferences).checks.map(
+      (value) => value.name,
+    )
+    expect(referenceChecks).toContain('supporting_references_one_source_ck')
+    const auditColumns = getTableConfig(governance.auditEvents).columns.map((column) => column.name)
+    expect(auditColumns).not.toContain('session_token')
+    expect(auditColumns).not.toContain('private_document_contents')
   })
 
   it('keeps Rest Slots separate from Matches and declares core result guards', () => {
