@@ -107,7 +107,7 @@ export const mediaPresentations = appSchema.table(
     focalX: integer('focal_x').notNull().default(50),
     focalY: integer('focal_y').notNull().default(50),
     transformationVersion: text('transformation_version').notNull(),
-    readiness: text('readiness').notNull().default('pending'),
+    readiness: text('readiness').notNull(),
     supersedesPresentationId: uuid('supersedes_presentation_id').references(
       (): AnyPgColumn => mediaPresentations.id,
     ),
@@ -117,10 +117,7 @@ export const mediaPresentations = appSchema.table(
       'media_presentations_focal_ck',
       sql`${table.focalX} between 0 and 100 and ${table.focalY} between 0 and 100`,
     ),
-    check(
-      'media_presentations_readiness_ck',
-      sql`${table.readiness} in ('pending', 'ready', 'failed')`,
-    ),
+    check('media_presentations_readiness_ck', sql`${table.readiness} in ('ready', 'failed')`),
   ],
 )
 
@@ -148,10 +145,7 @@ export const mediaAssetVariants = appSchema.table(
     ),
     unique('media_asset_variants_key_uq').on(table.objectKey),
     check('media_asset_variants_dimensions_ck', sql`${table.width} > 0 and ${table.height} > 0`),
-    check(
-      'media_asset_variants_state_ck',
-      sql`${table.processingState} in ('pending', 'ready', 'failed')`,
-    ),
+    check('media_asset_variants_state_ck', sql`${table.processingState} in ('ready', 'failed')`),
   ],
 )
 
