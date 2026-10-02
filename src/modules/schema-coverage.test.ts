@@ -3,7 +3,9 @@ import { getTableConfig } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
 
 import * as competition from './competition/infrastructure/schema'
+import * as match from './match/infrastructure/schema'
 import * as registration from './registration/infrastructure/schema'
+import * as standingsProgression from './standings-progression/infrastructure/schema'
 
 const competitionTables = [
   'competitions',
@@ -80,6 +82,82 @@ const registrationTables = [
   'roster_eligibility_rulings',
 ]
 
+const matchTables = [
+  'fixture_rounds',
+  'fixture_slots',
+  'league_fixture_slots',
+  'knockout_fixture_slots',
+  'playoff_fixture_slots',
+  'replacement_fixture_slots',
+  'rest_slots',
+  'matches',
+  'match_participant_assignments',
+  'match_state_transitions',
+  'match_visibility_transitions',
+  'match_publication_batches',
+  'match_publication_batch_items',
+  'match_schedule_drafts',
+  'match_schedule_revisions',
+  'match_actual_kickoffs',
+  'venues',
+  'venue_profile_versions',
+  'playing_fields',
+  'match_participant_occupancies',
+  'match_result_drafts',
+  'played_score_versions',
+  'penalty_shootout_versions',
+  'result_rulings',
+  'technical_results',
+  'match_result_versions',
+  'disciplinary_summary_versions',
+  'match_replacements',
+]
+
+const standingsProgressionTables = [
+  'stage_participant_slots',
+  'stage_participant_assignments',
+  'ranking_rule_sets',
+  'points_schemes',
+  'tie_breakers',
+  'fair_play_weight_sets',
+  'cross_group_comparison_rules',
+  'cross_group_tie_breakers',
+  'qualification_rules',
+  'qualification_slots',
+  'qualification_outputs',
+  'qualification_rulings',
+  'ranking_tie_cases',
+  'ranking_tie_case_entries',
+  'ranking_rulings',
+  'ranking_ruling_positions',
+  'standing_adjustment_decisions',
+  'final_standings_snapshots',
+  'final_standings_rows',
+  'final_standings_evidence',
+  'draw_pools',
+  'draw_pool_entries',
+  'draw_pots',
+  'draw_constraints',
+  'knockout_rounds',
+  'knockout_round_versions',
+  'tie_resolution_rule_sets',
+  'tie_resolution_steps',
+  'knockout_ties',
+  'knockout_tie_versions',
+  'knockout_tie_participant_slots',
+  'tie_state_transitions',
+  'draw_outcome_drafts',
+  'draw_outcome_draft_assignments',
+  'draw_outcomes',
+  'draw_outcome_assignments',
+  'confirmed_byes',
+  'tie_rulings',
+  'tie_outcomes',
+  'placement_outputs',
+  'final_knockout_snapshots',
+  'final_knockout_evidence',
+]
+
 describe('module-owned schema coverage', () => {
   it('accounts for every Competition blueprint table', () => {
     expect(Object.values(competition).map(getTableName).sort()).toEqual(competitionTables.sort())
@@ -89,11 +167,58 @@ describe('module-owned schema coverage', () => {
     expect(Object.values(registration).map(getTableName).sort()).toEqual(registrationTables.sort())
   })
 
+  it('accounts for every Match blueprint table', () => {
+    expect(Object.values(match).map(getTableName).sort()).toEqual(matchTables.sort())
+  })
+
+  it('accounts for every Standings and Progression blueprint table', () => {
+    expect(Object.values(standingsProgression).map(getTableName).sort()).toEqual(
+      standingsProgressionTables.sort(),
+    )
+  })
+
   it('resolves every table and declared constraint inside the app schema', () => {
-    for (const table of [...Object.values(competition), ...Object.values(registration)]) {
+    for (const table of [
+      ...Object.values(competition),
+      ...Object.values(registration),
+      ...Object.values(match),
+      ...Object.values(standingsProgression),
+    ]) {
       const configuration = getTableConfig(table)
       expect(configuration.schema).toBe('app')
       expect(configuration.columns.length).toBeGreaterThan(0)
     }
+  })
+
+  it('keeps Rest Slots separate from Matches and declares core result guards', () => {
+    const restColumnNames = getTableConfig(match.restSlots).columns.map((column) => column.name)
+    expect(restColumnNames).toContain('fixture_round_id')
+    expect(restColumnNames).not.toContain('match_id')
+    expect(restColumnNames).not.toContain('venue_id')
+
+    const matchChecks = getTableConfig(match.matches).checks.map((constraint) => constraint.name)
+    expect(matchChecks).toContain('matches_finished_result_ck')
+
+    const resultChecks = getTableConfig(match.matchResultVersions).checks.map(
+      (constraint) => constraint.name,
+    )
+    expect(resultChecks).toContain('match_result_versions_source_ck')
+    expect(resultChecks).toContain('match_result_versions_shootout_ck')
+  })
+
+  it('declares typed qualification and final-evidence guards', () => {
+    const qualificationChecks = getTableConfig(standingsProgression.qualificationRules).checks.map(
+      (constraint) => constraint.name,
+    )
+    expect(qualificationChecks).toContain('qualification_rules_destination_ck')
+
+    const standingsEvidenceChecks = getTableConfig(
+      standingsProgression.finalStandingsEvidence,
+    ).checks.map((constraint) => constraint.name)
+    const knockoutEvidenceChecks = getTableConfig(
+      standingsProgression.finalKnockoutEvidence,
+    ).checks.map((constraint) => constraint.name)
+    expect(standingsEvidenceChecks).toContain('final_standings_evidence_one_source_ck')
+    expect(knockoutEvidenceChecks).toContain('final_knockout_evidence_one_source_ck')
   })
 })
