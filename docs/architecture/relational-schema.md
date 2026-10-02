@@ -180,7 +180,7 @@ erDiagram
 | `technical_results` | Immutable decision payload | Exact Home/Away score created by an assign/revise Result Ruling |
 | `match_result_versions` | Authoritative output | Exactly one Played Score or Technical Result, optional allowed Shootout, exact participant assignments and confirmation metadata |
 | `disciplinary_summary_versions` | Immutable history | Match/Season Entry yellow, second-yellow and direct-red totals with correction chain |
-| `match_replacements` | Immutable decision | Original and Replacement Match, ruling/reason, actor and current/superseded status |
+| `match_replacements` | Immutable decision | Original and Replacement Match, reason, actor and supersession relation; the current decision is derived from the chain |
 
 Only a Finished Match has a current Official Match Result, and every Finished Match has one. A revoked Technical Result without a Played Score clears the current result and explicitly changes the Match state. Field occupancy is a warning that may be overridden with a reason; participant overlap is a hard exclusion.
 
@@ -195,11 +195,13 @@ Only a Finished Match has a current Official Match Result, and every Finished Ma
 | `tie_breakers` | Immutable configuration | Rule Set, unique order and criterion type |
 | `fair_play_weight_sets` | Immutable configuration | Yellow, second-yellow and direct-red weights |
 | `cross_group_comparison_rules` | Immutable configuration | All matches, lowest-participant exclusion, or exact per-match ratio method |
+| `cross_group_tie_breakers` | Immutable configuration | Independent ordered criteria applied after cross-group comparison |
 | `qualification_rules` | Immutable configuration | Source positions/comparison and destination type; exactly one direct slot or Draw Pool FK |
 | `qualification_slots` | Mutable stable identity | Named destination place in a Stage/Round/Tie |
 | `qualification_outputs` | Authoritative output | Exact source final snapshot, destination, Season Entry/Bye and optional Qualification Ruling |
 | `qualification_rulings` | Immutable decision | Ineligible calculated Entry and replacement/vacant/Bye outcome with evidence |
 | `ranking_tie_cases` | Immutable calculation evidence | Tied Entries, criteria values, input versions, positions/boundary and calculation hash |
+| `ranking_tie_case_entries` | Immutable calculation detail | One tied Season Entry and calculated position per Tie Case; calculation trace remains versioned evidence |
 | `ranking_rulings` | Immutable decision | Tie Case, reason/evidence and supersession relation |
 | `ranking_ruling_positions` | Immutable decision detail | Ruling, Season Entry and ordered position |
 | `standing_adjustment_decisions` | Immutable decision | Signed points delta and apply/revoke/replace chain |
@@ -219,6 +221,7 @@ Only a Finished Match has a current Official Match Result, and every Finished Ma
 | `knockout_tie_participant_slots` | Authoritative configuration | Stable Home/Away place in a Tie, expected source and current assignment; target of Draw Outcome assignments |
 | `tie_state_transitions` | Immutable history | Configured/ready/in-progress/awaiting/finalized/suspended transitions |
 | `draw_outcome_drafts` | Mutable working state | Round, external draw date, assignments, evidence, validation state and optimistic version before publication |
+| `draw_outcome_draft_assignments` | Mutable working detail | One proposed Pool Entry or unresolved source assigned to a Tie participant slot in a Draft |
 | `draw_outcomes` | Immutable decision | Published Round result, date, actor, evidence, content hash and superseded outcome |
 | `draw_outcome_assignments` | Immutable decision detail | Pool Entry or unresolved source assigned to one Tie participant slot/Home-Away position |
 | `confirmed_byes` | Immutable decision | Source directly fills destination without Tie or Match |
