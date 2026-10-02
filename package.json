@@ -29,6 +29,7 @@
     "db:down": "docker compose --env-file .env.local -f compose.postgres.yaml down",
     "db:smoke": "tsx scripts/db/smoke.ts",
     "db:status": "tsx scripts/db/status.ts",
+    "db:verify-initial": "tsx scripts/db/verify-initial-migration.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "tsx scripts/db/guard-local-migration.ts && drizzle-kit migrate",
     "baseline": "pnpm quality && pnpm types && pnpm unit && pnpm build && pnpm e2e:chromium && pnpm accessibility && pnpm lighthouse"
