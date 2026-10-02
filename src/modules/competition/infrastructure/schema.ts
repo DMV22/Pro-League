@@ -50,9 +50,6 @@ export const competitionSlugs = appSchema.table(
     displaySlug: text('display_slug').notNull(),
     normalizedSlug: text('normalized_slug').notNull(),
     validFromAt: timestamp('valid_from_at', { withTimezone: true }).notNull(),
-    replacedBySlugId: uuid('replaced_by_slug_id').references(
-      (): AnyPgColumn => competitionSlugs.id,
-    ),
   },
   (table) => [
     uniqueIndex('competition_slugs_normalized_uq').on(table.normalizedSlug),
@@ -133,7 +130,6 @@ export const seasonSlugs = appSchema.table(
     displaySlug: text('display_slug').notNull(),
     normalizedSlug: text('normalized_slug').notNull(),
     validFromAt: timestamp('valid_from_at', { withTimezone: true }).notNull(),
-    replacedBySlugId: uuid('replaced_by_slug_id').references((): AnyPgColumn => seasonSlugs.id),
   },
   (table) => [
     uniqueIndex('season_slugs_competition_normalized_uq').on(
@@ -688,13 +684,18 @@ export const competitionStages = appSchema.table(
     currentVersionId: uuid('current_version_id').references(
       (): AnyPgColumn => competitionStageVersions.id,
     ),
-    currentFinalSnapshotId: uuid('current_final_snapshot_id'), // Progression FK in #70/#72.
+    currentFinalStandingsSnapshotId: uuid('current_final_standings_snapshot_id'),
+    currentFinalKnockoutSnapshotId: uuid('current_final_knockout_snapshot_id'),
   },
   (table) => [
     unique('competition_stages_season_code_uq').on(table.seasonId, table.code),
     check(
       'competition_stages_state_ck',
       sql`${table.sportingState} in ('configuring', 'ready', 'active', 'awaiting_finalization', 'finalized', 'removed', 'abandoned')`,
+    ),
+    check(
+      'competition_stages_final_snapshot_ck',
+      sql`(${table.sportingState} = 'finalized') = (num_nonnulls(${table.currentFinalStandingsSnapshotId}, ${table.currentFinalKnockoutSnapshotId}) = 1)`,
     ),
   ],
 )
@@ -723,18 +724,30 @@ export const competitionStageVersions = appSchema.table(
   ],
 )
 
-export const stageStateTransitions = appSchema.table('stage_state_transitions', {
-  ...immutableRecordColumns(),
-  stageId: uuid('stage_id')
-    .notNull()
-    .references(() => competitionStages.id),
-  fromState: text('from_state').notNull(),
-  toState: text('to_state').notNull(),
-  reason: text('reason').notNull(),
-  actorId: uuid('actor_id').notNull(),
-  amendmentId: uuid('amendment_id').references(() => formatAmendments.id),
-  rulingId: uuid('ruling_id'), // Progression FK in #70/#72.
-})
+export const stageStateTransitions = appSchema.table(
+  'stage_state_transitions',
+  {
+    ...immutableRecordColumns(),
+    stageId: uuid('stage_id')
+      .notNull()
+      .references(() => competitionStages.id),
+    fromState: text('from_state').notNull(),
+    toState: text('to_state').notNull(),
+    reason: text('reason').notNull(),
+    actorId: uuid('actor_id').notNull(),
+    amendmentId: uuid('amendment_id').references(() => formatAmendments.id),
+    resultRulingId: uuid('result_ruling_id'),
+    qualificationRulingId: uuid('qualification_ruling_id'),
+    rankingRulingId: uuid('ranking_ruling_id'),
+    tieRulingId: uuid('tie_ruling_id'),
+  },
+  (table) => [
+    check(
+      'stage_state_transitions_one_ruling_ck',
+      sql`num_nonnulls(${table.resultRulingId}, ${table.qualificationRulingId}, ${table.rankingRulingId}, ${table.tieRulingId}) <= 1`,
+    ),
+  ],
+)
 
 export const stageDependencies = appSchema.table(
   'stage_dependencies',

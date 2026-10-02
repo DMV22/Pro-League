@@ -69,7 +69,6 @@ export const teamSlugs = appSchema.table(
     displaySlug: text('display_slug').notNull(),
     normalizedSlug: text('normalized_slug').notNull(),
     validFromAt: timestamp('valid_from_at', { withTimezone: true }).notNull(),
-    replacedBySlugId: uuid('replaced_by_slug_id').references((): AnyPgColumn => teamSlugs.id),
   },
   (table) => [
     uniqueIndex('team_slugs_normalized_uq').on(table.normalizedSlug),

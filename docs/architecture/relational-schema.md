@@ -19,6 +19,7 @@ The database uses one PostgreSQL application schema named `app`. Drizzle schema 
 - Cross-module foreign keys use `ON DELETE RESTRICT` or `NO ACTION`; cross-module cascading deletion is prohibited.
 - Every mutable aggregate is protected by optimistic concurrency. Important commands additionally use the command-execution registry.
 - Public URLs never expose sequential identifiers. Article, Competition, Team, and Season slugs are retained in append-only per-entity slug tables so a former slug cannot be reused.
+- A historical slug resolves to its owning root; if it is not the root's current slug, the public route redirects directly to that current slug. History rows are never updated to form replacement chains.
 - Unicode display text and canonical normalized search/uniqueness values are stored separately. Normalization occurs in the application and is protected by database uniqueness.
 
 ## Table classifications
@@ -54,7 +55,7 @@ erDiagram
 | Table | Class | Key contents and rules |
 | --- | --- | --- |
 | `competitions` | Mutable root | Names, description, presentation metadata, visibility/archive state, current Season pointer, current profile version, optimistic version |
-| `competition_slugs` | Immutable history | Competition, display and normalized slug, valid-from time, replacement pointer; normalized slug unique across every current and former Competition slug |
+| `competition_slugs` | Immutable history | Competition, display and normalized slug, valid-from time; normalized slug unique across every current and former Competition slug |
 | `competition_profile_versions` | Immutable history | Official/short name, description, logo reference and correction reason; Competition points to current version |
 | `seasons` | Mutable root | Competition, name, scoped slug pointer, timezone, optional start/end dates, Sporting State, visibility, archive state, current Format Version and optimistic version |
 | `season_slugs` | Immutable history | Season and Competition, display/normalized slug; unique by Competition and normalized slug across current and former values |
@@ -77,9 +78,9 @@ erDiagram
 | `format_amendment_transitions` | Immutable history | Prepare/validate/apply/reject transition, actor, reason, time and activated Format Version |
 | `format_templates` | Mutable root | Reusable template identity, name, archive state and current template-version pointer |
 | `format_template_versions` | Immutable history | Versioned JSONB blueprint with schema version, validation hash and author; contains no real Season Entries or Matches |
-| `competition_stages` | Mutable root | Season, stable code, Sporting State, current Stage Version, current final snapshot pointers and optimistic version |
+| `competition_stages` | Mutable root | Season, stable code, Sporting State, current Stage Version, typed current Final Standings or Final Knockout Snapshot pointer (exactly one only when Finalized), and optimistic version |
 | `competition_stage_versions` | Immutable history | Format Version, Stage, name, order, `format_type` (`league`/`knockout`), league grouping mode and configuration hash |
-| `stage_state_transitions` | Immutable history | Stage state changes, reason, actor, amendment/ruling reference and time |
+| `stage_state_transitions` | Immutable history | Stage state changes, reason, actor, amendment reference, and at most one typed Result, Qualification, Ranking, or Tie Ruling reference |
 | `stage_dependencies` | Immutable configuration | Source Stage/output and destination Stage/slot within one Format Version; graph cycles are rejected before activation |
 | `stage_groups` | Mutable identity | Stable group identity within a Stage |
 | `stage_group_versions` | Immutable history | Stage Version, group name, code and order; code/order unique within Stage Version |
@@ -105,7 +106,7 @@ erDiagram
 | --- | --- | --- |
 | `teams` | Mutable root | Current profile/slug pointers, locality, visibility/archive state and optimistic version |
 | `team_profile_versions` | Immutable history | Official and short name, locality, logo and correction metadata |
-| `team_slugs` | Immutable history | Display/normalized slug and replacement relation; every historical slug remains reserved |
+| `team_slugs` | Immutable history | Display/normalized slug; every historical slug remains reserved |
 | `players` | Mutable root | Current identity version, public-profile state, current photo, merge target and optimistic version |
 | `player_identity_versions` | Immutable history | Given/family/patronymic/display names, normalized search values and correction metadata |
 | `player_private_details` | Private evidence root | Current private-detail version pointer; excluded from public roles and views |
@@ -238,7 +239,7 @@ Provisional Standings, Aggregate Score, and unresolved progression are derived o
 | Table | Owner/class | Key contents and rules |
 | --- | --- | --- |
 | `news_articles` | Editorial / mutable root | Lifecycle, current Working Copy/Published Revision/current slug pointers, immutable first-publication time and optimistic version |
-| `article_slugs` | Editorial / immutable history | Display/normalized slug and redirect chain; every old slug remains reserved |
+| `article_slugs` | Editorial / immutable history | Display/normalized slug; every old slug remains reserved and redirects to the root's current slug |
 | `article_working_copies` | Editorial / mutable working state | Title, summary, body JSONB/schema version, SEO data, selected Category, recovery version and validation state |
 | `article_revisions` | Editorial / immutable history | Complete publication snapshot, Category and label snapshot, correction metadata, content hash and supersession relation |
 | `article_state_transitions` | Editorial / immutable history | Draft/Scheduled/Published/Archived transitions and exact schedule/revision cause |
@@ -400,5 +401,7 @@ Player privacy actions remove unnecessary private data, restrict public presenta
 ## Migration and verification consequences
 
 The first implementation migration must create the complete schema from an empty supported PostgreSQL database. Implementation tickets may split the physical creation by coherent module phases, but the resulting constraints and ownership cannot be weakened.
+
+The initial migration creates the five NOLOGIN roles above. `app_public_reader` and `app_drift_reader` receive no domain-table grants; reviewed public views and deployment-identity role bindings are separate release work. `app_runtime` cannot modify immutable histories or the migration ledger, and `app_worker` receives only queue and job-history privileges. The disposable-local check is `pnpm db:migrate:local` followed by `pnpm db:verify-initial`, then a repeat migration run.
 
 Acceptance tests must cover clean installation, prior-release upgrade, immutable-table protection, public-role denial of private data, every critical unique/check/exclusion constraint, current-pointer ownership, optimistic conflicts, lock ordering, rollback with Audit failure, idempotent job claims, deletion under Legal Hold, and reconstruction of every final snapshot from its recorded input versions.

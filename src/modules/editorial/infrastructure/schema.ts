@@ -61,7 +61,6 @@ export const articleSlugs = appSchema.table(
     displaySlug: text('display_slug').notNull(),
     normalizedSlug: text('normalized_slug').notNull(),
     validFromAt: timestamp('valid_from_at', { withTimezone: true }).notNull(),
-    replacedBySlugId: uuid('replaced_by_slug_id').references((): AnyPgColumn => articleSlugs.id),
   },
   (table) => [
     uniqueIndex('article_slugs_normalized_uq').on(table.normalizedSlug),
@@ -133,7 +132,9 @@ export const articleWorkingCopies = appSchema.table(
       .references(() => articleCategories.id),
     proposedSlug: text('proposed_slug').notNull(),
     validationState: text('validation_state').notNull().default('incomplete'),
-    recoveryVersion: bigint('recovery_version', { mode: 'bigint' }).notNull().default(1n),
+    recoveryVersion: bigint('recovery_version', { mode: 'bigint' })
+      .notNull()
+      .default(sql`1`),
   },
   (table) => [
     check('article_working_copies_schema_ck', sql`${table.contentSchemaVersion} > 0`),
