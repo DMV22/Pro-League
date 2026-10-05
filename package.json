@@ -32,6 +32,8 @@
     "db:verify-initial": "tsx scripts/db/verify-initial-migration.ts",
     "db:verify-repositories": "tsx scripts/db/verify-repositories.ts",
     "db:verify-public-queries": "node --conditions=react-server --import tsx scripts/db/verify-public-queries.ts",
+    "db:seed-golden": "tsx scripts/db/seed-golden-season.ts",
+    "db:verify-golden": "node --conditions=react-server --import tsx scripts/db/verify-golden-season.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "tsx scripts/db/guard-local-migration.ts && drizzle-kit migrate",
     "baseline": "pnpm quality && pnpm types && pnpm unit && pnpm build && pnpm e2e:chromium && pnpm accessibility && pnpm lighthouse"
