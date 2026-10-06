@@ -3,12 +3,14 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
@@ -45,10 +47,17 @@ export const stageParticipantSlots = appSchema.table(
     currentAssignmentId: uuid('current_assignment_id').references(
       (): AnyPgColumn => stageParticipantAssignments.id,
     ),
+    // Maintained by the database from currentAssignmentId for the current-only uniqueness index.
+    currentSeasonEntryId: uuid('current_season_entry_id').references(() => seasonEntries.id, {
+      onDelete: 'restrict',
+    }),
   },
   (table) => [
     unique('stage_participant_slots_stage_code_uq').on(table.stageId, table.stableCode),
     unique('stage_participant_slots_stage_position_uq').on(table.stageId, table.position),
+    uniqueIndex('stage_participant_slots_current_entry_uq')
+      .on(table.stageId, table.currentSeasonEntryId)
+      .where(sql`${table.currentSeasonEntryId} is not null`),
     check('stage_participant_slots_position_ck', sql`${table.position} > 0`),
     check(
       'stage_participant_slots_source_ck',
@@ -679,6 +688,7 @@ export const knockoutTies = appSchema.table(
     currentOutcomeId: uuid('current_outcome_id').references((): AnyPgColumn => tieOutcomes.id),
   },
   (table) => [
+    unique('knockout_ties_id_round_uq').on(table.id, table.roundId),
     unique('knockout_ties_round_code_uq').on(table.roundId, table.stableCode),
     check(
       'knockout_ties_state_ck',
@@ -694,6 +704,8 @@ export const knockoutTieParticipantSlots = appSchema.table(
     tieId: uuid('tie_id')
       .notNull()
       .references(() => knockoutTies.id),
+    // Maintained from tieId; allows an atomic current participant uniqueness check per Round.
+    roundId: uuid('round_id').notNull(),
     side: text('side').notNull(),
     expectedSourceKind: text('expected_source_kind').notNull(),
     sourceQualificationSlotId: uuid('source_qualification_slot_id').references(
@@ -710,6 +722,14 @@ export const knockoutTieParticipantSlots = appSchema.table(
     ),
   },
   (table) => [
+    foreignKey({
+      name: 'knockout_tie_participant_slots_tie_round_fk',
+      columns: [table.tieId, table.roundId],
+      foreignColumns: [knockoutTies.id, knockoutTies.roundId],
+    }),
+    uniqueIndex('knockout_tie_participant_slots_round_entry_uq')
+      .on(table.roundId, table.currentSeasonEntryId)
+      .where(sql`${table.currentSeasonEntryId} is not null`),
     unique('knockout_tie_participant_slots_side_uq').on(table.tieId, table.side),
     check('knockout_tie_participant_slots_side_ck', sql`${table.side} in ('home', 'away')`),
     check(
