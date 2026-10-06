@@ -19,6 +19,7 @@ The database uses one PostgreSQL application schema named `app`. Drizzle schema 
 - Cross-module foreign keys use `ON DELETE RESTRICT` or `NO ACTION`; cross-module cascading deletion is prohibited.
 - Every mutable aggregate is protected by optimistic concurrency. Important commands additionally use the command-execution registry.
 - Public URLs never expose sequential identifiers. Article, Competition, Team, and Season slugs are retained in append-only per-entity slug tables so a former slug cannot be reused.
+- A historical slug resolves to its owning root; if it is not the root's current slug, the public route redirects directly to that current slug. History rows are never updated to form replacement chains.
 - Unicode display text and canonical normalized search/uniqueness values are stored separately. Normalization occurs in the application and is protected by database uniqueness.
 
 ## Table classifications
@@ -54,7 +55,7 @@ erDiagram
 | Table | Class | Key contents and rules |
 | --- | --- | --- |
 | `competitions` | Mutable root | Names, description, presentation metadata, visibility/archive state, current Season pointer, current profile version, optimistic version |
-| `competition_slugs` | Immutable history | Competition, display and normalized slug, valid-from time, replacement pointer; normalized slug unique across every current and former Competition slug |
+| `competition_slugs` | Immutable history | Competition, display and normalized slug, valid-from time; normalized slug unique across every current and former Competition slug |
 | `competition_profile_versions` | Immutable history | Official/short name, description, logo reference and correction reason; Competition points to current version |
 | `seasons` | Mutable root | Competition, name, scoped slug pointer, timezone, optional start/end dates, Sporting State, visibility, archive state, current Format Version and optimistic version |
 | `season_slugs` | Immutable history | Season and Competition, display/normalized slug; unique by Competition and normalized slug across current and former values |
@@ -77,9 +78,9 @@ erDiagram
 | `format_amendment_transitions` | Immutable history | Prepare/validate/apply/reject transition, actor, reason, time and activated Format Version |
 | `format_templates` | Mutable root | Reusable template identity, name, archive state and current template-version pointer |
 | `format_template_versions` | Immutable history | Versioned JSONB blueprint with schema version, validation hash and author; contains no real Season Entries or Matches |
-| `competition_stages` | Mutable root | Season, stable code, Sporting State, current Stage Version, current final snapshot pointers and optimistic version |
+| `competition_stages` | Mutable root | Season, stable code, Sporting State, current Stage Version, typed current Final Standings or Final Knockout Snapshot pointer (exactly one only when Finalized), and optimistic version |
 | `competition_stage_versions` | Immutable history | Format Version, Stage, name, order, `format_type` (`league`/`knockout`), league grouping mode and configuration hash |
-| `stage_state_transitions` | Immutable history | Stage state changes, reason, actor, amendment/ruling reference and time |
+| `stage_state_transitions` | Immutable history | Stage state changes, reason, actor, amendment reference, and at most one typed Result, Qualification, Ranking, or Tie Ruling reference |
 | `stage_dependencies` | Immutable configuration | Source Stage/output and destination Stage/slot within one Format Version; graph cycles are rejected before activation |
 | `stage_groups` | Mutable identity | Stable group identity within a Stage |
 | `stage_group_versions` | Immutable history | Stage Version, group name, code and order; code/order unique within Stage Version |
@@ -97,6 +98,7 @@ erDiagram
   season_rosters ||--o{ roster_entries : contains
   players ||--o{ roster_entries : registers
   roster_entries ||--o{ roster_registration_periods : covers
+  roster_registration_periods ||--o{ roster_registration_period_revisions : preserves
   roster_entries ||--o{ roster_entry_decisions : records
 ```
 
@@ -104,7 +106,7 @@ erDiagram
 | --- | --- | --- |
 | `teams` | Mutable root | Current profile/slug pointers, locality, visibility/archive state and optimistic version |
 | `team_profile_versions` | Immutable history | Official and short name, locality, logo and correction metadata |
-| `team_slugs` | Immutable history | Display/normalized slug and replacement relation; every historical slug remains reserved |
+| `team_slugs` | Immutable history | Display/normalized slug; every historical slug remains reserved |
 | `players` | Mutable root | Current identity version, public-profile state, current photo, merge target and optimistic version |
 | `player_identity_versions` | Immutable history | Given/family/patronymic/display names, normalized search values and correction metadata |
 | `player_private_details` | Private evidence root | Current private-detail version pointer; excluded from public roles and views |
@@ -115,6 +117,7 @@ erDiagram
 | `season_applications` | Mutable root | Season, Team, submitted date, current state/decision, checklist snapshot and optimistic version |
 | `season_application_decisions` | Immutable decision | Recorded/review/approve/reject/withdraw/supersede actions with actor, reason and time |
 | `application_checklist_templates` | Reference/configuration | Versioned checklist owned by a Season |
+| `application_checklist_template_items` | Immutable template item | Ordered label and required flag belonging to one checklist template version |
 | `application_checklist_items` | Immutable application snapshot | Copied item label, required flag, review outcome, reviewer and exception reference |
 | `season_entries` | Mutable root | Season, Team, approved Application, participation state and optimistic version; unique Season/Team and approved Application |
 | `season_entry_state_transitions` | Immutable history | Register/suspend/reinstate/withdraw/disqualify history and reasons |
@@ -125,13 +128,14 @@ erDiagram
 | `season_rosters` | Mutable root | Season Entry, current Rule Set/readiness decision and optimistic version |
 | `roster_readiness_decisions` | Immutable decision | Ready/not-ready result, exact input versions and blocking reasons |
 | `roster_entries` | Mutable root | Roster, Player, state, playing position, classification/decision pointers and optimistic version |
-| `roster_registration_periods` | Immutable history | Player, Season, Roster Entry and `[start,end)` effective `daterange` |
+| `roster_registration_periods` | Authoritative mutable interval | Player, Season, Roster Entry, current approved/voided `[start,end)` effective `daterange`, current revision pointer and optimistic version |
+| `roster_registration_period_revisions` | Immutable history | Period, revision number, exact interval/state snapshot, opening/closure/correction/voiding action, actor, reason and superseded revision |
 | `roster_entry_decisions` | Immutable decision | Submit/activate/reject/end actions, actor, reason and Supporting Reference |
 | `legionnaire_classification_decisions` | Immutable decision | Local/Legionnaire, basis, actor, time and supersession relation |
 | `roster_transfers` | Mutable workflow root | Source/destination Roster Entries, Player, Season, Transfer Window, effective date, state, reason and version |
 | `roster_eligibility_rulings` | Immutable decision | Exact waived rule, period, reason, actor and Supporting Reference; other validations remain active |
 
-Registration periods use a GiST exclusion constraint on Player, Season, and effective `daterange` so approved periods cannot overlap. Roster-size and quota counts are protected by ordered row locks and revalidation, not a row-level `CHECK`.
+Approved current registration periods use a GiST exclusion constraint on Player, Season, and effective `daterange` so they cannot overlap. A transfer transaction locks the Player-season key and affected Rosters, shortens the source interval, inserts the destination interval, and writes immutable revisions for both changes. Historical revisions are not subject to the current-period exclusion because they intentionally preserve superseded intervals. Roster-size and quota counts are protected by ordered row locks and revalidation, not a row-level `CHECK`.
 
 ## Match module
 
@@ -177,7 +181,7 @@ erDiagram
 | `technical_results` | Immutable decision payload | Exact Home/Away score created by an assign/revise Result Ruling |
 | `match_result_versions` | Authoritative output | Exactly one Played Score or Technical Result, optional allowed Shootout, exact participant assignments and confirmation metadata |
 | `disciplinary_summary_versions` | Immutable history | Match/Season Entry yellow, second-yellow and direct-red totals with correction chain |
-| `match_replacements` | Immutable decision | Original and Replacement Match, ruling/reason, actor and current/superseded status |
+| `match_replacements` | Immutable decision | Original and Replacement Match, reason, actor and supersession relation; the current decision is derived from the chain |
 
 Only a Finished Match has a current Official Match Result, and every Finished Match has one. A revoked Technical Result without a Played Score clears the current result and explicitly changes the Match state. Field occupancy is a warning that may be overridden with a reason; participant overlap is a hard exclusion.
 
@@ -192,11 +196,13 @@ Only a Finished Match has a current Official Match Result, and every Finished Ma
 | `tie_breakers` | Immutable configuration | Rule Set, unique order and criterion type |
 | `fair_play_weight_sets` | Immutable configuration | Yellow, second-yellow and direct-red weights |
 | `cross_group_comparison_rules` | Immutable configuration | All matches, lowest-participant exclusion, or exact per-match ratio method |
+| `cross_group_tie_breakers` | Immutable configuration | Independent ordered criteria applied after cross-group comparison |
 | `qualification_rules` | Immutable configuration | Source positions/comparison and destination type; exactly one direct slot or Draw Pool FK |
 | `qualification_slots` | Mutable stable identity | Named destination place in a Stage/Round/Tie |
 | `qualification_outputs` | Authoritative output | Exact source final snapshot, destination, Season Entry/Bye and optional Qualification Ruling |
 | `qualification_rulings` | Immutable decision | Ineligible calculated Entry and replacement/vacant/Bye outcome with evidence |
 | `ranking_tie_cases` | Immutable calculation evidence | Tied Entries, criteria values, input versions, positions/boundary and calculation hash |
+| `ranking_tie_case_entries` | Immutable calculation detail | One tied Season Entry and calculated position per Tie Case; calculation trace remains versioned evidence |
 | `ranking_rulings` | Immutable decision | Tie Case, reason/evidence and supersession relation |
 | `ranking_ruling_positions` | Immutable decision detail | Ruling, Season Entry and ordered position |
 | `standing_adjustment_decisions` | Immutable decision | Signed points delta and apply/revoke/replace chain |
@@ -216,6 +222,7 @@ Only a Finished Match has a current Official Match Result, and every Finished Ma
 | `knockout_tie_participant_slots` | Authoritative configuration | Stable Home/Away place in a Tie, expected source and current assignment; target of Draw Outcome assignments |
 | `tie_state_transitions` | Immutable history | Configured/ready/in-progress/awaiting/finalized/suspended transitions |
 | `draw_outcome_drafts` | Mutable working state | Round, external draw date, assignments, evidence, validation state and optimistic version before publication |
+| `draw_outcome_draft_assignments` | Mutable working detail | One proposed Pool Entry or unresolved source assigned to a Tie participant slot in a Draft |
 | `draw_outcomes` | Immutable decision | Published Round result, date, actor, evidence, content hash and superseded outcome |
 | `draw_outcome_assignments` | Immutable decision detail | Pool Entry or unresolved source assigned to one Tie participant slot/Home-Away position |
 | `confirmed_byes` | Immutable decision | Source directly fills destination without Tie or Match |
@@ -232,7 +239,7 @@ Provisional Standings, Aggregate Score, and unresolved progression are derived o
 | Table | Owner/class | Key contents and rules |
 | --- | --- | --- |
 | `news_articles` | Editorial / mutable root | Lifecycle, current Working Copy/Published Revision/current slug pointers, immutable first-publication time and optimistic version |
-| `article_slugs` | Editorial / immutable history | Display/normalized slug and redirect chain; every old slug remains reserved |
+| `article_slugs` | Editorial / immutable history | Display/normalized slug; every old slug remains reserved and redirects to the root's current slug |
 | `article_working_copies` | Editorial / mutable working state | Title, summary, body JSONB/schema version, SEO data, selected Category, recovery version and validation state |
 | `article_revisions` | Editorial / immutable history | Complete publication snapshot, Category and label snapshot, correction metadata, content hash and supersession relation |
 | `article_state_transitions` | Editorial / immutable history | Draft/Scheduled/Published/Archived transitions and exact schedule/revision cause |
@@ -394,5 +401,7 @@ Player privacy actions remove unnecessary private data, restrict public presenta
 ## Migration and verification consequences
 
 The first implementation migration must create the complete schema from an empty supported PostgreSQL database. Implementation tickets may split the physical creation by coherent module phases, but the resulting constraints and ownership cannot be weakened.
+
+The initial migration creates the five NOLOGIN roles above. `app_public_reader` and `app_drift_reader` receive no domain-table grants; reviewed public views and deployment-identity role bindings are separate release work. `app_runtime` cannot modify immutable histories or the migration ledger, and `app_worker` receives only queue and job-history privileges. The disposable-local check is `pnpm db:migrate:local` followed by `pnpm db:verify-initial`, then a repeat migration run.
 
 Acceptance tests must cover clean installation, prior-release upgrade, immutable-table protection, public-role denial of private data, every critical unique/check/exclusion constraint, current-pointer ownership, optimistic conflicts, lock ordering, rollback with Audit failure, idempotent job claims, deletion under Legal Hold, and reconstruction of every final snapshot from its recorded input versions.

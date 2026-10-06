@@ -1,0 +1,307 @@
+name: PR baseline
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: pr-baseline-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.scope.outputs.runtime }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: scope
+        name: Detect runtime changes
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "origin/${GITHUB_BASE_REF}...HEAD" -- . \
+            ':(exclude)**/*.md' \
+            ':(exclude)docs/**'; then
+            echo "runtime=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  quality:
+    name: quality
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm quality
+
+  types:
+    name: types
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm types
+
+  unit:
+    name: unit
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm unit
+
+  postgres-integration:
+    name: postgres-integration
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI_POSTGRES_DB: proleague_integration_ci
+      CI_POSTGRES_USER: proleague
+      CI_POSTGRES_PASSWORD: ci-only-postgres
+      CI_POSTGRES_PORT: 5435
+      MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_integration_ci
+      INTEGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_integration_ci
+    steps:
+      - name: No database work for documentation-only changes
+        if: needs.changes.outputs.runtime != 'true'
+        run: echo 'No runtime or schema changes; postgres-integration remains reported.'
+      - uses: actions/checkout@v7
+        if: needs.changes.outputs.runtime == 'true'
+      - uses: pnpm/setup@v3
+        if: needs.changes.outputs.runtime == 'true'
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - name: Start isolated PostgreSQL 18
+        if: needs.changes.outputs.runtime == 'true'
+        run: docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml up -d --wait
+      - name: Apply reviewed migrations and run integration suite
+        if: needs.changes.outputs.runtime == 'true'
+        run: |
+          pnpm db:migrate:local
+          pnpm db:verify-ledger --confirm-db=proleague_integration_ci
+          pnpm db:integration --target=ci --confirm-db=proleague_integration_ci
+      - name: Stop disposable PostgreSQL
+        if: always() && needs.changes.outputs.runtime == 'true'
+        run: docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml down -v
+
+  migration:
+    name: migration
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI_POSTGRES_DB: proleague_migration_ci
+      CI_POSTGRES_USER: proleague
+      CI_POSTGRES_PASSWORD: ci-only-postgres
+      CI_POSTGRES_PORT: 5435
+      MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_migration_ci
+    steps:
+      - name: No database work for documentation-only changes
+        if: needs.changes.outputs.runtime != 'true'
+        run: echo 'No runtime or schema changes; migration remains reported.'
+      - uses: actions/checkout@v7
+        if: needs.changes.outputs.runtime == 'true'
+      - uses: pnpm/setup@v3
+        if: needs.changes.outputs.runtime == 'true'
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - name: Start isolated PostgreSQL 18
+        if: needs.changes.outputs.runtime == 'true'
+        run: docker compose -p proleague-ci-migration -f compose.postgres.ci.yaml up -d --wait
+      - name: Empty install, ledger, and repeat application
+        if: needs.changes.outputs.runtime == 'true'
+        run: |
+          pnpm db:migrate:local
+          pnpm db:verify-ledger --confirm-db=proleague_migration_ci
+          pnpm db:migrate:local
+          pnpm db:verify-ledger --confirm-db=proleague_migration_ci
+      - name: Generated SQL and metadata remain committed
+        if: needs.changes.outputs.runtime == 'true'
+        run: |
+          pnpm db:generate
+          git diff --exit-code -- drizzle
+          test -z "$(git ls-files --others --exclude-standard -- drizzle)"
+      - name: Create disposable seed, reference, and upgrade databases
+        if: needs.changes.outputs.runtime == 'true'
+        run: |
+          for database in proleague_golden_seed_ci proleague_reference_ci proleague_upgrade_ci; do
+            docker compose -p proleague-ci-migration -f compose.postgres.ci.yaml exec -T postgres \
+              psql -U proleague -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $database"
+          done
+      - name: Deterministic Golden Season install and reset
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_golden_seed_ci
+          SEED_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_golden_seed_ci
+        run: |
+          pnpm db:migrate:local
+          pnpm db:verify-ledger --confirm-db=proleague_golden_seed_ci
+          pnpm db:seed-golden --target=ci --confirm-db=proleague_golden_seed_ci
+          pnpm db:verify-golden --target=ci --confirm-db=proleague_golden_seed_ci
+          pnpm db:seed-golden --target=ci --confirm-db=proleague_golden_seed_ci --reset
+          pnpm db:verify-golden --target=ci --confirm-db=proleague_golden_seed_ci
+      - name: Build reference schema from reviewed migrations
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_reference_ci
+        run: |
+          pnpm db:migrate:local
+          pnpm db:verify-ledger --confirm-db=proleague_reference_ci
+      - name: Compare schema-only PostgreSQL 18 dumps
+        if: needs.changes.outputs.runtime == 'true'
+        run: |
+          mkdir -p artifacts/db-drift
+          docker compose -p proleague-ci-migration -f compose.postgres.ci.yaml exec -T postgres \
+            pg_dump -U proleague -d proleague_reference_ci --schema-only --schema=app \
+            --no-owner --no-privileges --no-comments > artifacts/db-drift/reference.sql
+          docker compose -p proleague-ci-migration -f compose.postgres.ci.yaml exec -T postgres \
+            pg_dump -U proleague -d proleague_golden_seed_ci --schema-only --schema=app \
+            --no-owner --no-privileges --no-comments > artifacts/db-drift/actual.sql
+          pnpm db:compare-schema artifacts/db-drift/reference.sql artifacts/db-drift/actual.sql
+      - name: Rehearse 0000 to 0001 upgrade with populated Golden Season
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_upgrade_ci
+        run: |
+          pnpm db:prepare-upgrade
+          pnpm db:migrate:local
+          pnpm db:verify-upgrade
+          pnpm db:migrate:local
+          pnpm db:verify-ledger --confirm-db=proleague_upgrade_ci
+      - name: Upload safe schema-drift evidence on failure
+        if: failure() && needs.changes.outputs.runtime == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: postgres-schema-drift-${{ github.run_id }}
+          path: artifacts/db-drift
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop disposable PostgreSQL
+        if: always() && needs.changes.outputs.runtime == 'true'
+        run: docker compose -p proleague-ci-migration -f compose.postgres.ci.yaml down -v
+
+  build:
+    name: build
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm build
+
+  e2e-chromium:
+    name: e2e-chromium
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm e2e:chromium
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-e2e-${{ github.run_id }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  accessibility:
+    name: accessibility
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm accessibility
+      - name: Upload accessibility failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-accessibility-${{ github.run_id }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  lighthouse:
+    name: lighthouse
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm build
+      - run: pnpm lighthouse
+      - name: Upload Lighthouse evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-${{ github.run_id }}
+          path: artifacts/lighthouse
+          if-no-files-found: ignore
+          retention-days: 7

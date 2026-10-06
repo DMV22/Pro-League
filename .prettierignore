@@ -1,0 +1,13 @@
+.next
+.lighthouseci
+AGENTS.md
+CONTEXT.md
+README.md
+artifacts
+docs
+node_modules
+out
+playwright-report
+pnpm-lock.yaml
+skills-lock.json
+test-results

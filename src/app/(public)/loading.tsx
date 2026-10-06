@@ -1,0 +1,6 @@
+import { LoadingState } from '@/components/ui/feedback-state'
+import { uiText } from '@/shared/i18n/ui-text'
+
+export default function PublicLoading() {
+  return <LoadingState label={uiText.feedback.loading} />
+}

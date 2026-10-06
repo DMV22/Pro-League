@@ -33,6 +33,7 @@ Scheduled work: Render Cron -> PostgreSQL job/outbox claims
 - Clerk Organizations and Clerk role metadata are not authorization sources in the MVP; PostgreSQL owns the Admin access state.
 - **Cloudflare R2** holds uploaded media, private documents, and encrypted operational archives while PostgreSQL holds domain metadata and associations.
 - **Render** runs one paid Next.js web service and one scheduled dispatcher in Production.
+- Pull-request application previews use the isolated Free Render Service Preview baseline documented in [the Preview service runbook](./docs/operations/preview-service.md); full-stack Preview Environments remain deferred.
 - **Resend** sends invitation and operational transactional email.
 - **Server Components** read through server-only application services and repositories.
 - **Server Actions** execute mutations initiated by the Admin interface.
@@ -40,6 +41,8 @@ Scheduled work: Render Cron -> PostgreSQL job/outbox claims
 - **Redux Toolkit**, if retained, manages complex client-side UI state only. It is not a source of Official information.
 
 Business rules belong to framework-independent domain and application modules rather than React components, Server Actions, or Route Handlers. This keeps a future extraction to a separate API possible without paying that operational cost during the MVP.
+
+Local PostgreSQL 18 setup and the current Drizzle migration boundary are documented in [the local database runbook](./docs/operations/local-postgres.md).
 
 ## MVP scope
 
@@ -342,21 +345,33 @@ Commercial transfer-market features, contracts, fees, budgets, player market val
 
 ## Current state
 
-The checked-in application is still the original Vite, React, Redux Toolkit, and `redux-persist` learning prototype. Its browser-persisted league data is not production architecture and must not become the source of Official information.
+The checked-in application is a minimal Next.js App Router shell and the only root runtime. It includes separate public and Admin route groups, Ukrainian metadata, shared design tokens and accessible UI primitives, blocking CI checks, and a Render-hosted development deployment.
 
-The migration to Next.js and PostgreSQL has been designed but not yet implemented. Existing presentational components and useful tests may be migrated selectively; simulator-specific state and behavior will be retired.
+The original Vite, Redux Toolkit, and `redux-persist` simulator has been removed from the active tree. It remains reproducible only from the immutable `redux-prototype-final` Git tag and is never a source of Official information or a Production rollback target.
 
-The transition is incremental but not dual-runtime. The working prototype will be frozen behind the `redux-prototype-final` Git tag, then the repository root will move to a minimal Next.js foundation. The first functional Portal milestone is a PostgreSQL-backed read-only path from Competition and Season through Teams, one Fixture Round, Match Results, and Standings. Later milestones add the Admin/write foundation, Media Foundation, editorial publishing, competition setup, format and schedule building, results and progression, rosters, operational readiness, and the official launch.
+PostgreSQL persistence is the next foundation milestone. The first functional Portal milestone remains a PostgreSQL-backed read-only path from Competition and Season through Teams, one Fixture Round, Match Results, and Standings. Later milestones add the Admin/write foundation, Media Foundation, editorial publishing, competition setup, format and schedule building, results and progression, rosters, operational readiness, and the official launch.
 
 Each capability is completed as a vertical slice, including its migration, domain/application rules, repositories and queries, authorized Admin workflow, public projection, audit/outbox behavior, cache invalidation, and tests. Hard-coded or browser-persisted prototype data will not be imported. See [the simulator-to-Portal cutover blueprint](./docs/architecture/simulator-to-portal-cutover.md) and [ADR-0027](./docs/adr/0027-replace-the-redux-simulator-through-vertical-slices.md).
 
 Acceptance uses four blocking levels: pull request, milestone, Production deployment, and Official launch. A deterministic Golden Season supplies stable expected Standings, progression, scheduling, roster, editorial, audit, and cache outcomes; ten launch-blocking journey groups plus one cross-module Federation Season Day cover the critical happy and failure paths. Lighthouse, browser/accessibility, load, Security Review, backup/restore, waiver, evidence, release-candidate, and post-launch monitoring rules are defined in [the end-to-end acceptance blueprint](./docs/architecture/end-to-end-acceptance.md).
 
-Current prototype commands:
+Current application commands:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
+pnpm quality
+pnpm types
+pnpm unit
+pnpm build
+```
+
+To inspect the retired learning prototype without replacing the active checkout, create a separate worktree from its tag:
+
+```bash
+git worktree add ../pro-league-redux-prototype redux-prototype-final
+cd ../pro-league-redux-prototype
+pnpm install --frozen-lockfile
 pnpm test:run
 pnpm build
 ```

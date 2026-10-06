@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+
+services:
+  - type: web
+    name: pro-league-development
+    runtime: node
+    repo: https://github.com/DMV22/Pro-League.git
+    region: frankfurt
+    plan: free
+    branch: develop
+    autoDeployTrigger: checksPass
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /
+    previews:
+      generation: automatic
+    buildFilter:
+      paths:
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - next.config.ts
+        - lighthouserc.cjs
+        - tsconfig.json
+        - postcss.config.mjs
+        - render.yaml
+        - public/**
+        - src/**
+      ignoredPaths:
+        - .agents/**
+        - .github/**
+        - docs/**
+        - tests/**
+        - '**/*.md'
+        - skills-lock.json
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'
