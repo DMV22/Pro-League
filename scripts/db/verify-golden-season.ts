@@ -8,6 +8,7 @@ import { createPublicSeasonPathQueries } from '../../src/server/queries/public-s
 import { goldenId } from './golden-season-fixture'
 import { assertGoldenSeasonTarget, type GoldenSeasonTarget } from './golden-season-target'
 import { loadProjectEnv } from './load-env'
+import { readMigrationManifest } from './migration-ledger'
 
 loadProjectEnv()
 const option = (name: string) =>
@@ -44,7 +45,7 @@ async function count(sql: string, parameters: string[], expected: number): Promi
 try {
   const identity = await client.query<{ database: string }>('select current_database() as database')
   assert.equal(identity.rows[0]?.database, database)
-  await count('from app.__drizzle_migrations', [], 1)
+  await count('from app.__drizzle_migrations', [], readMigrationManifest().length)
   await count('from app.competitions', [], 1)
   await count('from app.seasons', [], 1)
   await count('from app.season_entries', [], 4)
