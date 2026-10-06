@@ -71,7 +71,7 @@ try {
   const row = inventory.rows[0]
   assert(row, 'Migration inventory is empty')
   assert(Number(row.table_count) === 210, 'Expected all 210 domain tables')
-  assert(Number(row.ledger_count) === 1, 'Expected one applied migration')
+  assert(Number(row.ledger_count) === 2, 'Expected both reviewed migrations')
   assert(Number(row.owner_pointer_count) === 37, 'Expected 37 direct owner-pointer FKs')
   assert(Number(row.immutable_trigger_count) === 125, 'Expected 125 immutable-table guards')
   assert(Number(row.exclusion_count) === 2, 'Expected both GiST range exclusions')
@@ -100,6 +100,31 @@ try {
   const competitionA = randomUUID()
   const competitionB = randomUUID()
   const slugB = randomUUID()
+  const adminIdentity = randomUUID()
+  await client.query(
+    `INSERT INTO app.admin_identities
+      (id, display_name, contact_email, normalized_email)
+      VALUES ($1, 'Integration Admin', 'admin@example.invalid', 'admin@example.invalid')`,
+    [adminIdentity],
+  )
+  await client.query(
+    `INSERT INTO app.admin_access_grants
+      (id, admin_identity_id, source, state)
+      VALUES ($1, $2, 'bootstrap', 'active')`,
+    [randomUUID(), adminIdentity],
+  )
+  await expectFailure(
+    'Admin Identity has at most one non-revoked Grant',
+    [
+      {
+        text: `INSERT INTO app.admin_access_grants
+          (id, admin_identity_id, source, state)
+          VALUES ($1, $2, 'bootstrap', 'suspended')`,
+        values: [randomUUID(), adminIdentity],
+      },
+    ],
+    '23505',
+  )
 
   await client.query('INSERT INTO app.competitions (id, display_name) VALUES ($1, $2), ($3, $4)', [
     competitionA,
@@ -112,6 +137,18 @@ try {
       (id, competition_id, display_slug, normalized_slug, valid_from_at)
       VALUES ($1, $2, $3, $4, now())`,
     [slugB, competitionB, 'migration-test-b', 'migration-test-b'],
+  )
+  await expectFailure(
+    'Former normalized slug cannot be reused',
+    [
+      {
+        text: `INSERT INTO app.competition_slugs
+          (id, competition_id, display_slug, normalized_slug, valid_from_at)
+          VALUES ($1, $2, $3, $4, now())`,
+        values: [randomUUID(), competitionA, 'Migration Test B', 'migration-test-b'],
+      },
+    ],
+    '23505',
   )
 
   await expectFailure(
@@ -159,9 +196,52 @@ try {
       VALUES ($1, $2, 'Migration Test Season', 'Europe/Kyiv')`,
     [season, competitionA],
   )
+  const foreignSeason = randomUUID()
+  await client.query(
+    `INSERT INTO app.seasons (id, competition_id, name, timezone)
+      VALUES ($1, $2, 'Other Competition Season', 'Europe/Kyiv')`,
+    [foreignSeason, competitionB],
+  )
+  await expectFailure(
+    'Current Season belongs to its Competition',
+    [
+      {
+        text: 'UPDATE app.competitions SET current_season_id = $1 WHERE id = $2',
+        values: [foreignSeason, competitionA],
+      },
+      { text: 'SET CONSTRAINTS ALL IMMEDIATE' },
+    ],
+    '23503',
+  )
   await client.query(
     'INSERT INTO app.competition_stages (id, season_id, code) VALUES ($1, $2, $3)',
     [stage, season, 'migration-stage'],
+  )
+  await client.query(
+    `INSERT INTO app.stage_groups (id, stage_id, stable_code)
+      VALUES ($1, $2, 'group-a')`,
+    [randomUUID(), stage],
+  )
+  await expectFailure(
+    'Group code is unique within a Stage',
+    [
+      {
+        text: `INSERT INTO app.stage_groups (id, stage_id, stable_code)
+          VALUES ($1, $2, 'group-a')`,
+        values: [randomUUID(), stage],
+      },
+    ],
+    '23505',
+  )
+  await expectFailure(
+    'Stage code is unique within a Season',
+    [
+      {
+        text: 'INSERT INTO app.competition_stages (id, season_id, code) VALUES ($1, $2, $3)',
+        values: [randomUUID(), season, 'migration-stage'],
+      },
+    ],
+    '23505',
   )
   await expectFailure(
     'Finalized stage requires one final snapshot',
@@ -198,6 +278,33 @@ try {
     `INSERT INTO app.season_entries (id, season_id, team_id, approved_application_id)
       VALUES ($1, $2, $3, $4)`,
     [entry, season, team, application],
+  )
+  const awayTeam = randomUUID()
+  const awayApplication = randomUUID()
+  const awayEntry = randomUUID()
+  await client.query('INSERT INTO app.teams (id, display_name) VALUES ($1, $2)', [
+    awayTeam,
+    'Migration Away Team',
+  ])
+  await client.query(
+    'INSERT INTO app.season_applications (id, season_id, team_id) VALUES ($1, $2, $3)',
+    [awayApplication, season, awayTeam],
+  )
+  await client.query(
+    `INSERT INTO app.season_entries (id, season_id, team_id, approved_application_id)
+      VALUES ($1, $2, $3, $4)`,
+    [awayEntry, season, awayTeam, awayApplication],
+  )
+  await expectFailure(
+    'One Season Entry per Team and Season',
+    [
+      {
+        text: `INSERT INTO app.season_entries
+          (id, season_id, team_id, approved_application_id) VALUES ($1, $2, $3, $4)`,
+        values: [randomUUID(), season, team, application],
+      },
+    ],
+    '23505',
   )
   await client.query('INSERT INTO app.season_rosters (id, season_entry_id) VALUES ($1, $2)', [
     roster,
@@ -249,16 +356,79 @@ try {
       VALUES ($1, $2, $3, 1, 'migration-test', $4, $5)`,
     [formatVersion, format, season, draft, randomUUID()],
   )
+  await expectFailure(
+    'Current Format version belongs to the Season',
+    [
+      {
+        text: 'UPDATE app.seasons SET current_format_version_id = $1 WHERE id = $2',
+        values: [formatVersion, foreignSeason],
+      },
+      { text: 'SET CONSTRAINTS ALL IMMEDIATE' },
+    ],
+    '23503',
+  )
   await client.query(
     `INSERT INTO app.competition_stage_versions
       (id, stage_id, format_version_id, name, position, format_type, configuration_hash)
       VALUES ($1, $2, $3, 'Test League', 1, 'league', 'migration-test')`,
     [stageVersion, stage, formatVersion],
   )
+  const rankingRuleSet = randomUUID()
+  const qualificationSlot = randomUUID()
+  await client.query(
+    `INSERT INTO app.ranking_rule_sets (id, stage_version_id, validation_hash)
+      VALUES ($1, $2, 'migration-test')`,
+    [rankingRuleSet, stageVersion],
+  )
+  await client.query(
+    `INSERT INTO app.qualification_slots (id, stage_id, stable_code, position)
+      VALUES ($1, $2, 'qualifier-1', 1)`,
+    [qualificationSlot, stage],
+  )
+  await client.query(
+    `INSERT INTO app.qualification_rules
+      (id, ranking_rule_set_id, rank_from, rank_through, destination_slot_id)
+      VALUES ($1, $2, 1, 1, $3)`,
+    [randomUUID(), rankingRuleSet, qualificationSlot],
+  )
+  await expectFailure(
+    'Qualification Rule must have exactly one destination',
+    [
+      {
+        text: `INSERT INTO app.qualification_rules
+          (id, ranking_rule_set_id, rank_from, rank_through)
+          VALUES ($1, $2, 1, 1)`,
+        values: [randomUUID(), rankingRuleSet],
+      },
+    ],
+    '23514',
+  )
+  await expectFailure(
+    'Activated Format history is immutable',
+    [
+      {
+        text: 'UPDATE app.competition_format_versions SET content_hash = $1 WHERE id = $2',
+        values: ['modified', formatVersion],
+      },
+    ],
+    '55000',
+  )
   await client.query(
     `INSERT INTO app.fixture_rounds (id, stage_id, stage_version_id, code, position)
       VALUES ($1, $2, $3, 'round-1', 1)`,
     [round, stage, stageVersion],
+  )
+  await expectFailure(
+    'Fixture Round code is unique within a Stage',
+    [
+      {
+        text: `INSERT INTO app.fixture_rounds
+          (id, stage_id, stage_version_id, code, position)
+          VALUES ($1, $2, $3, 'round-1', 2)`,
+        values: [randomUUID(), stage, stageVersion],
+      },
+    ],
+    '23505',
   )
   for (const [slotId, code, position] of [
     [homeSlot, 'home', 1],
@@ -270,6 +440,140 @@ try {
         VALUES ($1, $2, $3, $4, $5, 'direct_entry')`,
       [slotId, stage, stageVersion, code, position],
     )
+  }
+  await expectFailure(
+    'Stage participant slot code is unique',
+    [
+      {
+        text: `INSERT INTO app.stage_participant_slots
+          (id, stage_id, stage_version_id, stable_code, position, expected_source_kind)
+          VALUES ($1, $2, $3, 'home', 3, 'direct_entry')`,
+        values: [randomUUID(), stage, stageVersion],
+      },
+    ],
+    '23505',
+  )
+  const stageAssignment = randomUUID()
+  await client.query(
+    `INSERT INTO app.stage_participant_assignments
+      (id, slot_id, season_entry_id, reason, actor_id)
+      VALUES ($1, $2, $3, 'migration-test', $4)`,
+    [stageAssignment, homeSlot, entry, randomUUID()],
+  )
+  await client.query(
+    'UPDATE app.stage_participant_slots SET current_assignment_id = $1 WHERE id = $2',
+    [stageAssignment, homeSlot],
+  )
+  const projectedStageEntry = await client.query<{ current_season_entry_id: string }>(
+    'SELECT current_season_entry_id FROM app.stage_participant_slots WHERE id = $1',
+    [homeSlot],
+  )
+  assert(
+    projectedStageEntry.rows[0]?.current_season_entry_id === entry,
+    'Stage projection mismatched',
+  )
+  const duplicateStageAssignment = randomUUID()
+  await client.query(
+    `INSERT INTO app.stage_participant_assignments
+      (id, slot_id, season_entry_id, reason, actor_id)
+      VALUES ($1, $2, $3, 'migration-test', $4)`,
+    [duplicateStageAssignment, awaySlot, entry, randomUUID()],
+  )
+  await expectFailure(
+    'Current participant cannot occupy two slots in one Stage',
+    [
+      {
+        text: 'UPDATE app.stage_participant_slots SET current_assignment_id = $1 WHERE id = $2',
+        values: [duplicateStageAssignment, awaySlot],
+      },
+    ],
+    '23505',
+  )
+
+  const knockoutRound = randomUUID()
+  await client.query(
+    `INSERT INTO app.knockout_rounds (id, stage_id, stable_code)
+      VALUES ($1, $2, 'migration-knockout')`,
+    [knockoutRound, stage],
+  )
+  await expectFailure(
+    'Knockout Round code is unique within a Stage',
+    [
+      {
+        text: `INSERT INTO app.knockout_rounds (id, stage_id, stable_code)
+          VALUES ($1, $2, 'migration-knockout')`,
+        values: [randomUUID(), stage],
+      },
+    ],
+    '23505',
+  )
+  const tieRuleSet = randomUUID()
+  await client.query(
+    `INSERT INTO app.tie_resolution_rule_sets
+      (id, round_id, version_number, leg_count, validation_hash)
+      VALUES ($1, $2, 1, 1, 'migration-test')`,
+    [tieRuleSet, knockoutRound],
+  )
+  await client.query(
+    `INSERT INTO app.tie_resolution_steps (id, rule_set_id, position, step_type)
+      VALUES ($1, $2, 1, 'regulation'), ($3, $2, 2, 'penalties')`,
+    [randomUUID(), tieRuleSet, randomUUID()],
+  )
+  await expectFailure(
+    'Tie Resolution Step position is unique',
+    [
+      {
+        text: `INSERT INTO app.tie_resolution_steps (id, rule_set_id, position, step_type)
+          VALUES ($1, $2, 2, 'penalties')`,
+        values: [randomUUID(), tieRuleSet],
+      },
+    ],
+    '23505',
+  )
+  await expectFailure(
+    'Tie Resolution Step type is supported',
+    [
+      {
+        text: `INSERT INTO app.tie_resolution_steps (id, rule_set_id, position, step_type)
+          VALUES ($1, $2, 3, 'away_goals')`,
+        values: [randomUUID(), tieRuleSet],
+      },
+    ],
+    '23514',
+  )
+  for (let index = 1; index <= 2; index += 1) {
+    const tie = randomUUID()
+    await client.query(
+      'INSERT INTO app.knockout_ties (id, round_id, stable_code) VALUES ($1, $2, $3)',
+      [tie, knockoutRound, `tie-${index}`],
+    )
+    const slot = randomUUID()
+    if (index === 1) {
+      await client.query(
+        `INSERT INTO app.knockout_tie_participant_slots
+          (id, tie_id, side, expected_source_kind, current_season_entry_id)
+          VALUES ($1, $2, 'home', 'direct_entry', $3)`,
+        [slot, tie, entry],
+      )
+      const projectedRound = await client.query<{ round_id: string }>(
+        'SELECT round_id FROM app.knockout_tie_participant_slots WHERE id = $1',
+        [slot],
+      )
+      assert(projectedRound.rows[0]?.round_id === knockoutRound, 'Round projection mismatched')
+    } else {
+      await expectFailure(
+        'Current participant cannot occupy two Ties in one Knockout Round',
+        [
+          {
+            text: `INSERT INTO app.knockout_tie_participant_slots
+              (id, tie_id, side, expected_source_kind, current_season_entry_id)
+              VALUES ($1, $2, 'home', 'direct_entry', $3)`,
+            values: [slot, tie, entry],
+          },
+        ],
+        '23505',
+      )
+    }
   }
   await expectFailure(
     'Fixture Slot requires exactly one matching specialization',
@@ -307,6 +611,86 @@ try {
         VALUES ($1, $2, $3, $4)`,
       [fixture.match, fixture.slot, stage, `migration-${fixture.position}-${fixture.match}`],
     )
+    await expectFailure(
+      'One Match per Fixture Slot',
+      [
+        {
+          text: `INSERT INTO app.matches (id, fixture_slot_id, stage_id, calendar_uid)
+            VALUES ($1, $2, $3, $4)`,
+          values: [randomUUID(), fixture.slot, stage, `duplicate-${fixture.match}`],
+        },
+      ],
+      '23505',
+    )
+    await expectFailure(
+      'Finished Match needs an Official Result',
+      [
+        {
+          text: `UPDATE app.matches SET sporting_state = 'finished' WHERE id = $1`,
+          values: [fixture.match],
+        },
+      ],
+      '23514',
+    )
+    await expectFailure(
+      'Played Score goals cannot be negative',
+      [
+        {
+          text: `INSERT INTO app.played_score_versions
+            (id, match_id, home_regulation_goals, away_regulation_goals, actor_id)
+            VALUES ($1, $2, -1, 0, $3)`,
+          values: [randomUUID(), fixture.match, randomUUID()],
+        },
+      ],
+      '23514',
+    )
+    await expectFailure(
+      'Disciplinary card totals cannot be negative',
+      [
+        {
+          text: `INSERT INTO app.disciplinary_summary_versions
+            (id, match_id, season_entry_id, yellow_cards, second_yellow_dismissals,
+             direct_red_cards, actor_id)
+            VALUES ($1, $2, $3, -1, 0, 0, $4)`,
+          values: [randomUUID(), fixture.match, entry, randomUUID()],
+        },
+      ],
+      '23514',
+    )
+    await expectFailure(
+      'Official Result has exactly one source',
+      [
+        {
+          text: `INSERT INTO app.match_result_versions
+            (id, match_id, version_number, home_assignment_id, away_assignment_id,
+             confirmed_at, confirmed_by_actor_id)
+            VALUES ($1, $2, 1, $3, $4, now(), $5)`,
+          values: [randomUUID(), fixture.match, randomUUID(), randomUUID(), randomUUID()],
+        },
+      ],
+      '23514',
+    )
+    await expectFailure(
+      'Shootout cannot attach to Technical Result',
+      [
+        {
+          text: `INSERT INTO app.match_result_versions
+            (id, match_id, version_number, technical_result_id, penalty_shootout_version_id,
+             home_assignment_id, away_assignment_id, confirmed_at, confirmed_by_actor_id)
+            VALUES ($1, $2, 1, $3, $4, $5, $6, now(), $7)`,
+          values: [
+            randomUUID(),
+            fixture.match,
+            randomUUID(),
+            randomUUID(),
+            randomUUID(),
+            randomUUID(),
+            randomUUID(),
+          ],
+        },
+      ],
+      '23514',
+    )
     await client.query(
       `INSERT INTO app.match_schedule_revisions
         (id, match_id, timezone, venue_designation, internal_reason, actor_id, published_at)
@@ -314,6 +698,58 @@ try {
       [fixture.revision, fixture.match, randomUUID()],
     )
   }
+  const resultMatch = fixtures[0].match
+  const homeAssignment = randomUUID()
+  const awayAssignment = randomUUID()
+  for (const [assignmentId, role, seasonEntryId] of [
+    [homeAssignment, 'home', entry],
+    [awayAssignment, 'away', awayEntry],
+  ]) {
+    await client.query(
+      `INSERT INTO app.match_participant_assignments
+        (id, match_id, role, season_entry_id, reason, actor_id)
+        VALUES ($1, $2, $3, $4, 'migration-test', $5)`,
+      [assignmentId, resultMatch, role, seasonEntryId, randomUUID()],
+    )
+  }
+  const score = randomUUID()
+  const shootout = randomUUID()
+  const result = randomUUID()
+  await client.query(
+    `INSERT INTO app.played_score_versions
+      (id, match_id, home_regulation_goals, away_regulation_goals, actor_id)
+      VALUES ($1, $2, 1, 1, $3)`,
+    [score, resultMatch, randomUUID()],
+  )
+  await client.query(
+    `INSERT INTO app.penalty_shootout_versions
+      (id, match_id, home_successful_kicks, away_successful_kicks, winner_season_entry_id, actor_id)
+      VALUES ($1, $2, 5, 4, $3, $4)`,
+    [shootout, resultMatch, entry, randomUUID()],
+  )
+  await client.query(
+    `INSERT INTO app.match_result_versions
+      (id, match_id, version_number, played_score_version_id, penalty_shootout_version_id,
+       home_assignment_id, away_assignment_id, confirmed_at, confirmed_by_actor_id)
+      VALUES ($1, $2, 1, $3, $4, $5, $6, now(), $7)`,
+    [result, resultMatch, score, shootout, homeAssignment, awayAssignment, randomUUID()],
+  )
+  await client.query(
+    `UPDATE app.matches
+      SET sporting_state = 'finished', current_result_version_id = $1,
+          current_home_assignment_id = $2, current_away_assignment_id = $3
+      WHERE id = $4`,
+    [result, homeAssignment, awayAssignment, resultMatch],
+  )
+  const officialResult = await client.query<{ sporting_state: string; source: string }>(
+    `SELECT match.sporting_state, result.played_score_version_id::text AS source
+      FROM app.matches AS match
+      JOIN app.match_result_versions AS result ON result.id = match.current_result_version_id
+      WHERE match.id = $1`,
+    [resultMatch],
+  )
+  assert(officialResult.rows[0]?.sporting_state === 'finished', 'Match did not finish')
+  assert(officialResult.rows[0]?.source === score, 'Official Result source mismatched')
   await client.query(
     `INSERT INTO app.match_participant_occupancies
       (id, match_id, season_entry_id, schedule_revision_id, planned_period)
@@ -333,6 +769,61 @@ try {
       },
     ],
     '23P01',
+  )
+  const command = randomUUID()
+  await client.query(
+    `INSERT INTO app.command_executions
+      (id, actor_scope, idempotency_key, payload_hash, expires_at)
+      VALUES ($1, 'migration-test', 'once', 'hash-a', now() + interval '1 day')`,
+    [command],
+  )
+  await expectFailure(
+    'Logical command cannot be accepted twice',
+    [
+      {
+        text: `INSERT INTO app.command_executions
+          (id, actor_scope, idempotency_key, payload_hash, expires_at)
+          VALUES ($1, 'migration-test', 'once', 'hash-b', now() + interval '1 day')`,
+        values: [randomUUID()],
+      },
+    ],
+    '23505',
+  )
+  await client.query(
+    `INSERT INTO app.scheduled_jobs
+      (id, logical_job_key, job_type, target_type, target_id, due_at)
+      VALUES ($1, 'migration-job', 'test', 'competition', $2, now())`,
+    [randomUUID(), competitionA],
+  )
+  await expectFailure(
+    'Logical job key cannot be accepted twice',
+    [
+      {
+        text: `INSERT INTO app.scheduled_jobs
+          (id, logical_job_key, job_type, target_type, target_id, due_at)
+          VALUES ($1, 'migration-job', 'test', 'competition', $2, now())`,
+        values: [randomUUID(), competitionA],
+      },
+    ],
+    '23505',
+  )
+  await client.query(
+    `INSERT INTO app.inbound_webhook_receipts
+      (id, source, provider_event_id, signature_result, payload_hash)
+      VALUES ($1, 'test-provider', 'same-event', 'verified', 'hash-a')`,
+    [randomUUID()],
+  )
+  await expectFailure(
+    'Provider webhook cannot be accepted twice',
+    [
+      {
+        text: `INSERT INTO app.inbound_webhook_receipts
+          (id, source, provider_event_id, signature_result, payload_hash)
+          VALUES ($1, 'test-provider', 'same-event', 'verified', 'hash-b')`,
+        values: [randomUUID()],
+      },
+    ],
+    '23505',
   )
   await client.query('SET CONSTRAINTS ALL IMMEDIATE')
   await client.query('ROLLBACK')

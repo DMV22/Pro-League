@@ -1,4 +1,6 @@
-import type { drizzle } from 'drizzle-orm/node-postgres'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
-export type Database = ReturnType<typeof drizzle>
+// Repositories depend on the Drizzle surface, not on whether a Pool or one
+// checked-out PoolClient owns the transaction.
+export type Database = NodePgDatabase<Record<string, unknown>>
 export type DatabaseTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
