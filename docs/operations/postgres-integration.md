@@ -22,7 +22,7 @@ pnpm db:integration --target=local --confirm-db=proleague_integration
 
 The integration command requires that exact database name, a loopback host, and explicit confirmation. It never falls back to `DATABASE_URL` or `MIGRATION_DATABASE_URL`, refuses an unmigrated or nonempty database, and requires PostgreSQL major version 18. All domain fixtures in the migration, repository, and public-query checks roll back. The two operational queue fixtures and the lock-order fixture are removed after successful verification, so the command can be rerun. If the process is killed after committing a fixture but before cleanup, recreate **only** this disposable database; do not point the command at another database.
 
-CI can use a separate empty `proleague_integration_ci` database and `--target=ci --confirm-db=proleague_integration_ci`. Wiring it as a blocking PR job belongs to [#77](https://github.com/DMV22/Pro-League/issues/77).
+CI uses a separate empty `proleague_integration_ci` database and `--target=ci --confirm-db=proleague_integration_ci`. The PR job and local reproduction are described in [PostgreSQL PR gates](postgres-ci-gates.md).
 
 ## What the command verifies
 
@@ -63,4 +63,4 @@ The constraint matrix in `docs/architecture/relational-schema.md` maps to accept
 
 ## Forward upgrade rehearsal
 
-Migration `0001_current_participant_uniqueness.sql` was also applied to an isolated clone of the deterministic Golden Season database at the preceding schema revision. The clone's migration ledger advanced from one row to two, and both backfill mismatch counts were zero. This exercises existing Stage assignments and Knockout Tie slots rather than only empty-table installation. The original `proleague_golden_seed` database was not changed. The repeatable PR upgrade job and read-only drift comparison are tracked by #77.
+Migration `0001_current_participant_uniqueness.sql` was also applied to an isolated clone of the deterministic Golden Season database at the preceding schema revision. The clone's migration ledger advanced from one row to two, and both backfill mismatch counts were zero. This exercises existing Stage assignments and Knockout Tie slots rather than only empty-table installation. The original `proleague_golden_seed` database was not changed. The repeatable PR upgrade job and read-only drift comparison are described in [PostgreSQL PR gates](postgres-ci-gates.md).

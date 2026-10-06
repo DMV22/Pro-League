@@ -35,6 +35,10 @@
     "db:seed-golden": "tsx scripts/db/seed-golden-season.ts",
     "db:verify-golden": "node --conditions=react-server --import tsx scripts/db/verify-golden-season.ts",
     "db:integration": "tsx scripts/db/verify-integration.ts",
+    "db:verify-ledger": "tsx scripts/db/verify-migration-ledger.ts",
+    "db:prepare-upgrade": "tsx scripts/db/prepare-upgrade-rehearsal.ts",
+    "db:verify-upgrade": "tsx scripts/db/verify-upgrade-rehearsal.ts",
+    "db:compare-schema": "tsx scripts/db/compare-schema-dumps.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "tsx scripts/db/guard-local-migration.ts && drizzle-kit migrate",
     "baseline": "pnpm quality && pnpm types && pnpm unit && pnpm build && pnpm e2e:chromium && pnpm accessibility && pnpm lighthouse"
