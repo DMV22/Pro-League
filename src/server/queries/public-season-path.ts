@@ -56,13 +56,8 @@ function publicParticipant(
 
 type MatchRow = Awaited<ReturnType<typeof readPublishedRoundMatches>>[number]
 
-function publicResult(row: MatchRow, hasPublicParticipants: boolean): PublicMatchResult | null {
-  if (
-    !hasPublicParticipants ||
-    row.sportingState !== 'finished' ||
-    !row.resultId ||
-    !row.confirmedAt
-  ) {
+function publicResult(row: MatchRow): PublicMatchResult | null {
+  if (row.sportingState !== 'finished' || !row.resultId || !row.confirmedAt) {
     return null
   }
   const confirmedAt = row.confirmedAt.toISOString()
@@ -276,6 +271,10 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
           parent.formatVersionId,
         )
         for (const row of matchRows) {
+          const home = publicParticipant(row.homeEntryId, row.homeTeamId, row.homeTeamName)
+          const away = publicParticipant(row.awayEntryId, row.awayTeamId, row.awayTeamName)
+          if (!home || !away) continue
+
           let round = fixtureRoundsById.get(row.roundId)
           if (!round) {
             round = {
@@ -298,9 +297,7 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
               publishedResults: [],
             })
           }
-          const home = publicParticipant(row.homeEntryId, row.homeTeamId, row.homeTeamName)
-          const away = publicParticipant(row.awayEntryId, row.awayTeamId, row.awayTeamName)
-          const result = publicResult(row, Boolean(home && away))
+          const result = publicResult(row)
           const match: PublicMatch = {
             id: row.matchId,
             sportingState: row.sportingState,

@@ -194,11 +194,16 @@ try {
     .find((match) => match.id === goldenId('league-match-0'))
   assert.equal(correctedPublicMatch?.result?.kind, 'technical')
   assert.equal(correctedPublicMatch?.result?.id, goldenId('league-result-technical'))
+  if (correctedPublicMatch?.result?.kind === 'technical') {
+    assert.equal(correctedPublicMatch.result.homeGoals, 0)
+    assert.equal(correctedPublicMatch.result.awayGoals, 3)
+  }
   const postponedPublicMatch = publicPath.fixtureRounds
     .flatMap((round) => round.matches)
     .find((match) => match.id === goldenId('league-match-1'))
   assert.equal(postponedPublicMatch?.sportingState, 'postponed')
   assert.equal(postponedPublicMatch?.kickoffOn, null)
+  assert.equal(postponedPublicMatch?.result, null)
   assert.ok(publicPath.standingsInputs.some((input) => input.publishedResults.length > 0))
 
   const stable = await client.query<{ kind: string; id: string; relation: string }>(
