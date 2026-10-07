@@ -12,6 +12,7 @@
     "dev:golden": "tsx scripts/dev-golden-season.ts",
     "build": "next build",
     "start": "next start",
+    "start:golden": "tsx scripts/start-golden-season.ts",
     "start:test": "next start --hostname 127.0.0.1 --port 3100",
     "start:lighthouse": "next start --hostname 127.0.0.1 --port 3200",
     "lint": "eslint .",
