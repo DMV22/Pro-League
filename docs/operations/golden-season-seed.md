@@ -30,6 +30,8 @@ pnpm db:seed-golden --target=local --confirm-db=proleague_golden_seed
 pnpm db:verify-golden --target=local --confirm-db=proleague_golden_seed
 ```
 
+For everyday browser checks after the fixture is installed, run `pnpm db:up` if PostgreSQL is stopped, then `pnpm dev:golden`. This command reads the private `SEED_DATABASE_URL` from the environment (normally `.env.local`), verifies that it targets the local `proleague_golden_seed` database, and passes it to Next.js as `DATABASE_URL` only for that process. It does not migrate, seed, reset, or change the normal `pnpm dev` target.
+
 To deliberately replace this disposable database's application data:
 
 ```powershell

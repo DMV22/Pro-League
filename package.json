@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:golden": "tsx scripts/dev-golden-season.ts",
     "build": "next build",
     "start": "next start",
     "start:test": "next start --hostname 127.0.0.1 --port 3100",
@@ -32,6 +33,7 @@
     "db:verify-initial": "tsx scripts/db/verify-initial-migration.ts",
     "db:verify-repositories": "tsx scripts/db/verify-repositories.ts",
     "db:verify-public-queries": "node --conditions=react-server --import tsx scripts/db/verify-public-queries.ts",
+    "db:verify-public-navigation": "node --conditions=react-server --import tsx scripts/db/verify-public-navigation.ts",
     "db:seed-golden": "tsx scripts/db/seed-golden-season.ts",
     "db:verify-golden": "node --conditions=react-server --import tsx scripts/db/verify-golden-season.ts",
     "db:integration": "tsx scripts/db/verify-integration.ts",
