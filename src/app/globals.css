@@ -344,6 +344,63 @@
   gap: 0.4rem;
 }
 
+.public-season-entries,
+.public-rounds,
+.public-match-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-season-entries li,
+.public-rounds > li,
+.public-match {
+  border-top: 1px solid var(--border);
+}
+
+.public-season-entries li,
+.public-match-main,
+.public-match-details {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.public-season-entries li,
+.public-match {
+  padding: 1rem 0.75rem;
+}
+
+.public-entry-state,
+.public-match-details {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+}
+
+.public-rounds > li {
+  padding-block: 1.5rem;
+}
+
+.public-rounds h3 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.public-match-main {
+  align-items: baseline;
+}
+
+.public-match-score {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.public-match-details {
+  justify-content: flex-start;
+  margin: 0.5rem 0 0;
+}
+
 .admin-main {
   place-items: start center;
 }

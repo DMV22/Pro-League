@@ -5,10 +5,12 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { ErrorState, LoadingState } from '@/components/ui/feedback-state'
+import { FixtureRounds, SeasonEntries } from '@/components/public/season-content'
 import {
   hasPublicDatabaseConfiguration,
   resolveRuntimePublicSeason,
 } from '@/server/queries/public-navigation'
+import { getRuntimePublicSeasonPathQueries } from '@/server/queries/public-season-path'
 import { uiText } from '@/shared/i18n/ui-text'
 
 type Props = PageProps<'/competitions/[competitionSlug]/seasons/[seasonSlug]'>
@@ -52,6 +54,12 @@ async function SeasonContent({ params }: ContentProps) {
   if (result.kind === 'notFound') notFound()
 
   const { competition, season } = result.value
+  const seasonPath = await getRuntimePublicSeasonPathQueries().getSeasonPath(
+    competition.id,
+    season.id,
+  )
+  if (!seasonPath) notFound()
+
   return (
     <div className="public-page">
       <nav className="public-breadcrumbs" aria-label="Навігаційний ланцюжок">
@@ -88,6 +96,8 @@ async function SeasonContent({ params }: ContentProps) {
           </div>
         )}
       </section>
+      <SeasonEntries entries={seasonPath.entries} />
+      <FixtureRounds rounds={seasonPath.fixtureRounds} />
     </div>
   )
 }
