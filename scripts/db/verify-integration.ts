@@ -259,6 +259,7 @@ try {
   runExisting('scripts/db/verify-initial-migration.ts')
   runExisting('scripts/db/verify-repositories.ts')
   runExisting('scripts/db/verify-public-queries.ts')
+  runExisting('scripts/db/verify-public-navigation.ts')
   await verifyRoleAndRollback()
   await verifyQueueClaims()
   await verifyParentBeforeChildLock()

@@ -5,10 +5,10 @@ test('renders the public Portal shell and supports its primary navigation', asyn
 
   await expect(page).toHaveTitle('ProLeague — місцевий футбол')
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Нова платформа місцевого футболу' }),
+    page.getByRole('heading', { level: 1, name: 'Змагання, які об’єднують громади' }),
   ).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Основна навігація' })).toBeVisible()
-  await expect(page.getByText('Next.js foundation · online')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Змагання' })).toBeVisible()
 })
 
 test('renders the Admin shell as a non-indexable area', async ({ page }) => {
