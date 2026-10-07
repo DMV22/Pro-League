@@ -112,6 +112,41 @@ jobs:
           pnpm db:migrate:local
           pnpm db:verify-ledger --confirm-db=proleague_integration_ci
           pnpm db:integration --target=ci --confirm-db=proleague_integration_ci
+      - name: Prepare dedicated public browser fixture
+        if: needs.changes.outputs.runtime == 'true'
+        run: |
+          docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml exec -T postgres \
+            psql -U proleague -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE proleague_golden_seed_ci"
+      - name: Migrate and seed public browser fixture
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_golden_seed_ci
+          SEED_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_golden_seed_ci
+        run: |
+          pnpm db:migrate:local
+          pnpm db:seed-golden --target=ci --confirm-db=proleague_golden_seed_ci
+          pnpm db:verify-golden --target=ci --confirm-db=proleague_golden_seed_ci
+      - name: Verify database-to-HTML browser navigation
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_golden_seed_ci
+          PUBLIC_NAVIGATION_TEST_FIXTURE: '1'
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm build
+          pnpm exec playwright test tests/e2e/public-navigation.spec.ts tests/accessibility/public-navigation.a11y.spec.ts --project=chromium --project=chromium-mobile
+      - name: Verify empty public navigation
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_integration_ci
+          PUBLIC_NAVIGATION_EMPTY_FIXTURE: '1'
+        run: pnpm exec playwright test tests/e2e/public-navigation-empty.spec.ts --project=chromium
+      - name: Verify database failure state
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          DATABASE_URL: postgresql://unreachable:unreachable@127.0.0.1:59999/proleague_unreachable_ci
+          PUBLIC_NAVIGATION_ERROR_FIXTURE: '1'
+        run: pnpm exec playwright test tests/e2e/public-navigation-error.spec.ts --project=chromium
       - name: Stop disposable PostgreSQL
         if: always() && needs.changes.outputs.runtime == 'true'
         run: docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml down -v
@@ -234,6 +269,8 @@ jobs:
     if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PUBLIC_NAVIGATION_UNCONFIGURED_FIXTURE: '1'
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
