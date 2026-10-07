@@ -205,6 +205,145 @@
   place-items: center;
 }
 
+.public-page {
+  width: min(100%, var(--content-wide));
+  margin-inline: auto;
+}
+
+.public-hero,
+.public-detail-header {
+  max-width: 54rem;
+  padding-block: clamp(2rem, 7vw, 5.5rem);
+}
+
+.public-hero {
+  min-height: min(48vh, 28rem);
+}
+
+.public-overline {
+  margin: 0 0 1rem;
+  color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.public-hero h1,
+.public-detail-header h1 {
+  max-width: 17ch;
+  margin: 0;
+  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+}
+
+.public-lead {
+  max-width: 42rem;
+  margin: 1.5rem 0 0;
+  color: var(--muted-foreground);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  line-height: 1.6;
+}
+
+.public-section {
+  padding-block: 2rem 4rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 2rem;
+}
+
+.public-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.public-section-heading h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  letter-spacing: -0.035em;
+}
+
+.public-section-heading p {
+  max-width: 25rem;
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.public-index {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.public-index li {
+  border-bottom: 1px solid var(--border);
+}
+
+.public-index-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  min-height: 6rem;
+  padding: 1.25rem 0.75rem;
+  text-decoration: none;
+}
+
+.public-index-link:hover,
+.public-index-link:focus-visible {
+  background: rgb(121 230 158 / 8%);
+}
+
+.public-index-copy {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.public-index-copy strong {
+  font-size: clamp(1.15rem, 2.5vw, 1.55rem);
+  letter-spacing: -0.025em;
+}
+
+.public-index-copy span,
+.public-index-action,
+.public-breadcrumbs,
+.public-fact-label {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+}
+
+.public-index-action {
+  flex-shrink: 0;
+  color: var(--primary);
+  font-weight: 650;
+}
+
+.public-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 1.5rem;
+}
+
+.public-breadcrumbs a {
+  text-underline-offset: 0.25rem;
+}
+
+.public-season-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 3rem;
+  padding-block: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.public-season-overview > div {
+  display: grid;
+  gap: 0.4rem;
+}
+
 .admin-main {
   place-items: start center;
 }
@@ -319,6 +458,12 @@
   .portal-card,
   .admin-card {
     border-radius: var(--radius-xl);
+  }
+
+  .public-section-heading,
+  .public-index-link {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

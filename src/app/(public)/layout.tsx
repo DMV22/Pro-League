@@ -18,6 +18,9 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           <Link className="nav-link" href="/">
             {uiText.navigation.home}
           </Link>
+          <Link className="nav-link" href="/#competitions">
+            {uiText.navigation.competitions}
+          </Link>
         </nav>
       </header>
       <main id="main-content" className="site-main" tabIndex={-1}>
