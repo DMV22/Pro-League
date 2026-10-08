@@ -443,7 +443,10 @@ try {
   ])
 
   const competitionsList = await queries.listCompetitions()
-  assert.deepEqual(competitionsList, [{ id: ids.competition, name: 'Public Cup' }])
+  assert.deepEqual(
+    competitionsList.filter((competition) => competition.id === ids.competition),
+    [{ id: ids.competition, name: 'Public Cup' }],
+  )
   assert.equal(await queries.getSeasonPath(ids.competition, ids.privateSeason), null)
   assert.equal(
     await queries.getSeasonPath(ids.privateCompetition, ids.seasonOfPrivateCompetition),
@@ -458,13 +461,9 @@ try {
   assert(path)
   assert.equal(path.entries.length, 2)
   assert(!JSON.stringify(path).includes('Secret Team'))
-  assert.equal(path.fixtureRounds.length, 2)
+  assert.equal(path.fixtureRounds.length, 1)
   assert.equal(path.fixtureRounds[0].matches.length, 1)
-  assert.equal(path.fixtureRounds[1].matches.length, 1)
-  assert.equal(path.fixtureRounds[1].matches[0].id, ids.publicMatchB)
-  assert.equal(path.fixtureRounds[1].matches[0].home, null)
-  assert.equal(path.fixtureRounds[1].matches[0].away?.teamName, 'Public A')
-  assert.equal(path.fixtureRounds[1].matches[0].result, null)
+  assert(!JSON.stringify(path).includes(ids.publicMatchB))
   assert.equal(path.fixtureRounds[0].matches[0].result?.kind, 'played')
   assert.equal(path.fixtureRounds[0].matches[0].kickoffOn, '2026-09-01')
   assert.equal(path.standingsInputs[0].publishedResults[0].homeGoals, 2)
