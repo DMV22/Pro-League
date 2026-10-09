@@ -3,11 +3,30 @@ export type PublicCompetition = {
   name: string
 }
 
+export const publicParticipationStates = [
+  'registered',
+  'suspended',
+  'withdrawn',
+  'disqualified',
+] as const
+export type PublicParticipationState = (typeof publicParticipationStates)[number]
+
+export const publicMatchSportingStates = [
+  'unscheduled',
+  'scheduled',
+  'postponed',
+  'in_progress',
+  'suspended',
+  'finished',
+  'cancelled',
+] as const
+export type PublicMatchSportingState = (typeof publicMatchSportingStates)[number]
+
 export type PublicSeasonEntry = {
   id: string
   teamId: string
   teamName: string
-  participationState: string
+  participationState: PublicParticipationState
 }
 
 export type PublicMatchParticipant = {
@@ -36,9 +55,10 @@ export type PublicMatchResult =
 
 export type PublicMatch = {
   id: string
-  sportingState: string
-  home: PublicMatchParticipant | null
-  away: PublicMatchParticipant | null
+  sportingState: PublicMatchSportingState
+  /** This projection excludes Matches with unresolved or non-public participants. */
+  home: PublicMatchParticipant
+  away: PublicMatchParticipant
   kickoffOn: string | null
   kickoffAtLocal: string | null
   timezone: string | null
@@ -77,7 +97,7 @@ export type PublicStandingsInput = {
   }>
 }
 
-export type PublicSeasonPath = {
+export type PublicSeasonContent = {
   competition: PublicCompetition
   season: {
     id: string
@@ -87,11 +107,22 @@ export type PublicSeasonPath = {
   }
   entries: PublicSeasonEntry[]
   fixtureRounds: PublicFixtureRound[]
+}
+
+export interface PublicSeasonContentQueries {
+  listCompetitions(): Promise<PublicCompetition[]>
+  /** Null means missing/private parent. Empty arrays mean no Published children. No snapshot guarantee across SELECTs. */
+  getSeasonContent(competitionId: string, seasonId: string): Promise<PublicSeasonContent | null>
+}
+
+export type PublicSeasonStandingsInputs = Pick<PublicSeasonContent, 'competition' | 'season'> & {
   standingsInputs: PublicStandingsInput[]
 }
 
-export interface PublicSeasonPathQueries {
-  listCompetitions(): Promise<PublicCompetition[]>
-  /** Null means the Competition or Season is missing or not Public. Empty child arrays mean no Published children. */
-  getSeasonPath(competitionId: string, seasonId: string): Promise<PublicSeasonPath | null>
+export interface PublicSeasonStandingsQueries {
+  /** Null means the Competition or Season is missing or not Public. No snapshot guarantee across SELECTs. */
+  getStandingsInputs(
+    competitionId: string,
+    seasonId: string,
+  ): Promise<PublicSeasonStandingsInputs | null>
 }

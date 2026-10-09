@@ -10,7 +10,7 @@ import {
   hasPublicDatabaseConfiguration,
   resolveRuntimePublicSeason,
 } from '@/server/queries/public-navigation'
-import { getRuntimePublicSeasonPathQueries } from '@/server/queries/public-season-path'
+import { getRuntimePublicSeasonContentQueries } from '@/server/queries/public-season-path'
 import { uiText } from '@/shared/i18n/ui-text'
 
 type Props = PageProps<'/competitions/[competitionSlug]/seasons/[seasonSlug]'>
@@ -54,7 +54,7 @@ async function SeasonContent({ params }: ContentProps) {
   if (result.kind === 'notFound') notFound()
 
   const { competition, season } = result.value
-  const seasonPath = await getRuntimePublicSeasonPathQueries().getSeasonPath(
+  const seasonPath = await getRuntimePublicSeasonContentQueries().getSeasonContent(
     competition.id,
     season.id,
   )

@@ -52,9 +52,7 @@ export function SeasonEntries({ entries }: { entries: PublicSeasonEntry[] }) {
             <li key={entry.id}>
               <span>{entry.teamName}</span>
               <span className="public-entry-state">
-                {uiText.public.participationStates[
-                  entry.participationState as keyof typeof uiText.public.participationStates
-                ] ?? entry.participationState}
+                {uiText.public.participationStates[entry.participationState]}
               </span>
             </li>
           ))}
@@ -66,16 +64,14 @@ export function SeasonEntries({ entries }: { entries: PublicSeasonEntry[] }) {
 
 function MatchItem({ match }: { match: PublicMatch }) {
   const score = matchScore(match)
-  const state =
-    uiText.public.matchStates[match.sportingState as keyof typeof uiText.public.matchStates] ??
-    match.sportingState
+  const state = uiText.public.matchStates[match.sportingState]
 
   return (
     <li className="public-match">
       <div className="public-match-main">
         <strong>
-          {match.home?.teamName} <span aria-hidden="true">—</span>
-          <span className="sr-only">проти</span> {match.away?.teamName}
+          {match.home.teamName} <span aria-hidden="true">—</span>
+          <span className="sr-only">проти</span> {match.away.teamName}
         </strong>
         {score && (
           <strong className="public-match-score">

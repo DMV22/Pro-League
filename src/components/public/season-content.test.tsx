@@ -95,9 +95,12 @@ describe('public Scheduled Kickoff presentation', () => {
       },
       expected: '10 жовтня 2026 р., 00:00',
     },
-  ])('displays $name', ({ match, expected }) => {
-    const round = renderMatch(match)
+  ] satisfies Array<{ name: string; match: Partial<PublicMatch>; expected: string }>)(
+    'displays $name',
+    ({ match, expected }) => {
+      const round = renderMatch(match)
 
-    expect(round.getByText(expected)).toBeVisible()
-  })
+      expect(round.getByText(expected)).toBeVisible()
+    },
+  )
 })

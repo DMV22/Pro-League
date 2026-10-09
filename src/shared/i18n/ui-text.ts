@@ -1,3 +1,8 @@
+import type {
+  PublicMatchSportingState,
+  PublicParticipationState,
+} from '@/application/queries/public-season-path'
+
 export const uiText = {
   brand: {
     name: 'ProLeague',
@@ -49,7 +54,7 @@ export const uiText = {
       suspended: 'Відсторонена',
       withdrawn: 'Вибула',
       disqualified: 'Дискваліфікована',
-    },
+    } satisfies Record<PublicParticipationState, string>,
     matchStates: {
       unscheduled: 'Не призначено',
       scheduled: 'Заплановано',
@@ -58,7 +63,7 @@ export const uiText = {
       suspended: 'Призупинено',
       finished: 'Завершено',
       cancelled: 'Скасовано',
-    },
+    } satisfies Record<PublicMatchSportingState, string>,
     viewCompetition: 'Переглянути змагання',
     viewSeason: 'Переглянути сезон',
     backToCompetitions: 'До списку змагань',

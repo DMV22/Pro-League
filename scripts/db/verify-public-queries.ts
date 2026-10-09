@@ -38,7 +38,10 @@ import {
   tieBreakers,
 } from '../../src/modules/standings-progression/infrastructure/schema'
 import { assertLocalDatabaseUrl, readDatabaseUrl } from '../../src/server/db/config'
-import { createPublicSeasonPathQueries } from '../../src/server/queries/public-season-path'
+import {
+  createPublicSeasonContentQueries,
+  createPublicSeasonStandingsQueries,
+} from '../../src/server/queries/public-season-path'
 import { loadProjectEnv } from './load-env'
 
 loadProjectEnv()
@@ -109,7 +112,7 @@ try {
   }
   await client.query('BEGIN')
   const database = drizzle({ client })
-  const queries = createPublicSeasonPathQueries(database)
+  const queries = createPublicSeasonContentQueries(database)
 
   await database.insert(competitions).values([
     { id: ids.competition, displayName: 'Public Cup', visibility: 'public' },
@@ -447,18 +450,58 @@ try {
     competitionsList.filter((competition) => competition.id === ids.competition),
     [{ id: ids.competition, name: 'Public Cup' }],
   )
-  assert.equal(await queries.getSeasonPath(ids.competition, ids.privateSeason), null)
+  assert.equal(await queries.getSeasonContent(ids.competition, ids.privateSeason), null)
   assert.equal(
-    await queries.getSeasonPath(ids.privateCompetition, ids.seasonOfPrivateCompetition),
+    await queries.getSeasonContent(ids.privateCompetition, ids.seasonOfPrivateCompetition),
     null,
   )
-  assert.equal(await queries.getSeasonPath(ids.competition, uid(999)), null)
-  const empty = await queries.getSeasonPath(ids.competition, ids.emptySeason)
+  assert.equal(await queries.getSeasonContent(ids.competition, uid(999)), null)
+  const empty = await queries.getSeasonContent(ids.competition, ids.emptySeason)
   assert.deepEqual(empty?.entries, [])
   assert.deepEqual(empty?.fixtureRounds, [])
 
-  const path = await queries.getSeasonPath(ids.competition, ids.season)
+  const standingsQueries = createPublicSeasonStandingsQueries(database)
+  assert.equal(await standingsQueries.getStandingsInputs(ids.competition, ids.privateSeason), null)
+  assert.equal(
+    await standingsQueries.getStandingsInputs(
+      ids.privateCompetition,
+      ids.seasonOfPrivateCompetition,
+    ),
+    null,
+  )
+  assert.equal(await standingsQueries.getStandingsInputs(ids.competition, uid(999)), null)
+  assert.deepEqual(
+    (await standingsQueries.getStandingsInputs(ids.competition, ids.emptySeason))?.standingsInputs,
+    [],
+  )
+
+  // Exercise real PostgreSQL reads with standings-table access denied at the database seam.
+  let contentStatementCount = 0
+  const contentOnlyDatabase = drizzle({
+    client,
+    logger: {
+      logQuery(query) {
+        contentStatementCount += 1
+        if (
+          /"(?:ranking_rule_sets|points_schemes|tie_breakers|standing_adjustment_decisions)"/.test(
+            query,
+          )
+        ) {
+          throw new Error('Standings tables are unavailable to the content reader')
+        }
+      },
+    },
+  })
+  const contentOnlyQueries = createPublicSeasonContentQueries(contentOnlyDatabase)
+  const independentContent = await contentOnlyQueries.getSeasonContent(ids.competition, ids.season)
+  assert.ok(independentContent)
+  console.info(
+    `Public Season content completed with ${contentStatementCount} SQL statements and no Standings reads`,
+  )
+
+  const path = await queries.getSeasonContent(ids.competition, ids.season)
   assert(path)
+  assert.deepEqual(independentContent, path)
   assert.equal(path.entries.length, 2)
   assert(!JSON.stringify(path).includes('Secret Team'))
   assert.equal(path.fixtureRounds.length, 1)
@@ -466,14 +509,49 @@ try {
   assert(!JSON.stringify(path).includes(ids.publicMatchB))
   assert.equal(path.fixtureRounds[0].matches[0].result?.kind, 'played')
   assert.equal(path.fixtureRounds[0].matches[0].kickoffOn, '2026-09-01')
-  assert.equal(path.standingsInputs[0].publishedResults[0].homeGoals, 2)
-  assert.equal(path.standingsInputs[0].pointsScheme?.win, 3)
-  assert.deepEqual(path.standingsInputs[0].tieBreakers, [
+  const standings = await createPublicSeasonStandingsQueries(database).getStandingsInputs(
+    ids.competition,
+    ids.season,
+  )
+  assert(standings)
+  assert.equal(standings.standingsInputs[0].publishedResults[0].homeGoals, 2)
+  assert.equal(standings.standingsInputs[0].pointsScheme?.win, 3)
+  assert.deepEqual(standings.standingsInputs[0].tieBreakers, [
     { position: 1, criterion: 'goal_difference', direction: 'desc' },
   ])
-  assert.equal(path.standingsInputs[0].adjustmentDecisions.length, 1)
-  assert.equal(path.standingsInputs[0].adjustmentDecisions[0].pointsDelta, -2)
+  assert.equal(standings.standingsInputs[0].adjustmentDecisions.length, 1)
+  assert.equal(standings.standingsInputs[0].adjustmentDecisions[0].pointsDelta, -2)
   assert.deepEqual(JSON.parse(JSON.stringify(path)), path)
+  assert.deepEqual(JSON.parse(JSON.stringify(standings)), standings)
+
+  for (const invalidState of [
+    { field: 'participation_state', label: 'participation' },
+    { field: 'sporting_state', label: 'match sporting' },
+  ]) {
+    // Corrupt only the external database response; PostgreSQL constraints stay intact.
+    const invalidStateClient = new Proxy(client, {
+      get(target, property) {
+        if (property !== 'query') return Reflect.get(target, property, target)
+        return async (config: pg.QueryConfig, values?: unknown[]) => {
+          const result = await target.query(config, values)
+          const isTargetQuery =
+            invalidState.field === 'participation_state' || config.text.includes('"matches"')
+          const stateIndex = result.fields.findIndex((field) => field.name === invalidState.field)
+          if (isTargetQuery && stateIndex >= 0) {
+            for (const row of result.rows) row[stateIndex] = 'unsupported_state'
+          }
+          return result
+        }
+      },
+    })
+    await assert.rejects(
+      createPublicSeasonContentQueries(drizzle({ client: invalidStateClient })).getSeasonContent(
+        ids.competition,
+        ids.season,
+      ),
+      new RegExp(`Invalid public ${invalidState.label} state`),
+    )
+  }
 
   await database.insert(resultRulings).values({
     id: ids.ruling,
@@ -505,10 +583,14 @@ try {
     .update(matches)
     .set({ currentResultVersionId: ids.technicalResult })
     .where(and(eq(matches.id, ids.matchA), eq(matches.currentResultVersionId, ids.playedResult)))
-  const corrected = await queries.getSeasonPath(ids.competition, ids.season)
+  const corrected = await queries.getSeasonContent(ids.competition, ids.season)
   assert.equal(corrected?.fixtureRounds[0].matches[0].result?.kind, 'technical')
-  assert.equal(corrected?.standingsInputs[0].publishedResults[0].homeGoals, 0)
-  assert.equal(corrected?.standingsInputs[0].publishedResults[0].awayGoals, 3)
+  const correctedStandings = await createPublicSeasonStandingsQueries(database).getStandingsInputs(
+    ids.competition,
+    ids.season,
+  )
+  assert.equal(correctedStandings?.standingsInputs[0].publishedResults[0].homeGoals, 0)
+  assert.equal(correctedStandings?.standingsInputs[0].publishedResults[0].awayGoals, 3)
 
   console.log(
     'Public Query Layer visibility, current-result, empty/missing, and serialization checks passed',
