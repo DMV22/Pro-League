@@ -134,7 +134,7 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           pnpm build
-          pnpm exec playwright test tests/e2e/public-navigation.spec.ts tests/accessibility/public-navigation.a11y.spec.ts --project=chromium --project=chromium-mobile
+          pnpm exec playwright test tests/e2e/public-navigation.spec.ts tests/e2e/public-season-content.spec.ts tests/accessibility/public-navigation.a11y.spec.ts --project=chromium --project=chromium-mobile
       - name: Verify empty public navigation
         if: needs.changes.outputs.runtime == 'true'
         env:
