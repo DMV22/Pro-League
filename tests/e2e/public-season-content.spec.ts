@@ -14,9 +14,25 @@ test('visitor reads published Season Entries and both representative Fixture Rou
   const response = await request.get(seasonPath)
   expect(response.ok()).toBe(true)
   const html = await response.text()
-  expect(html).toContain('ФК Берест (демо)')
-  expect(html).toContain('Тур L1')
-  expect(html).toContain('Тур L2')
+  // Parse the response without executing scripts or hydration. Streamed HTML can be
+  // in hidden containers; assert its semantic content, not pre-hydration visibility.
+  const serverContent = await page.evaluate((responseHtml) => {
+    const document = new DOMParser().parseFromString(responseHtml, 'text/html')
+    document.querySelectorAll('script, template').forEach((node) => node.remove())
+    const entriesTitle = document.getElementById('season-entries-title')
+    return {
+      entries: entriesTitle?.closest('section')?.textContent ?? null,
+      firstRound: document.querySelector('section[aria-label="Тур L1"]')?.textContent ?? null,
+      secondRound: document.querySelector('section[aria-label="Тур L2"]')?.textContent ?? null,
+    }
+  }, html)
+  expect(serverContent.entries).toContain('ФК Берест (демо)')
+  expect(serverContent.entries).toContain('ФК Луг (демо)')
+  expect(serverContent.firstRound).toContain('0:3')
+  expect(serverContent.firstRound).toContain('Технічний результат')
+  expect(serverContent.firstRound).not.toContain('2:1')
+  expect(serverContent.secondRound).toContain('Перенесено')
+  expect(serverContent.secondRound).not.toMatch(/\d+:\d+/)
 
   await page.goto(seasonPath)
   const entries = page.getByRole('region', { name: 'Учасники сезону' })
@@ -30,6 +46,5 @@ test('visitor reads published Season Entries and both representative Fixture Rou
 
   const secondRound = page.getByRole('region', { name: 'Тур L2' })
   await expect(secondRound).toContainText('Перенесено')
-  await expect(secondRound).not.toContainText('0:0')
-  await expect(secondRound).not.toContainText('0:3')
+  await expect(secondRound).not.toContainText(/\d+:\d+/)
 })
