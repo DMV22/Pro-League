@@ -6,6 +6,21 @@ Issue [#77](https://github.com/DMV22/Pro-League/issues/77) adds two stable PR ch
 
 The checked upgrade pair is deliberately explicit in `prepare-upgrade-rehearsal.ts`. When a new migration is added, the rehearsal fails until its predecessor and populated-fixture assertions are reviewed and updated. Migration `0000` itself had no preceding project schema, so a pre-`0000` upgrade is not applicable; its empty installation is the relevant proof.
 
+## Docker Hub authentication
+
+Both database jobs authenticate with `docker/login-action@v4` before pulling the PostgreSQL image. Set these repository secrets under **Settings → Secrets and variables → Actions → New repository secret**:
+
+- `DOCKERHUB_USERNAME`: your Docker ID (not your email address).
+- `DOCKERHUB_TOKEN`: a Docker personal access token with **Repo Public Read-only** permission and a suitable expiration date. Only the public PostgreSQL image is pulled; private repository access is not needed. Do not use your account password.
+
+Create the token in Docker Home under **Account settings → Personal access tokens**. Store its value directly in GitHub Secrets; never commit it, add it to `.env.local`, or include it in screenshots or logs. Rotate the secret before the token expires. See [Docker access tokens](https://docs.docker.com/security/access-tokens/) and [Docker login action](https://github.com/docker/login-action).
+
+Without both secrets, runtime jobs fail with an explicit configuration error instead of falling back to anonymous pulls. Documentation-only checks still need no registry credentials. Fork pull requests do not receive repository secrets and therefore cannot run these authenticated database jobs as configured; do not switch to `pull_request_target` to execute untrusted PR code with secrets.
+
+Authenticated pulls remain subject to the Docker account's limits. This authentication does not change the database version, migration checks, or disposable database isolation, and does not publish any images.
+
+After adding the secrets, push the updated workflow to the PR branch. Rerunning an older workflow run alone does not pick up this workflow change. Confirm that **Check Docker Hub credentials**, **Log in to Docker Hub**, and **Start isolated PostgreSQL 18** pass in both jobs, then wait for the actual migration and integration checks to finish before merging.
+
 ## Local reproduction
 
 Use only a dedicated disposable container and the exact CI database names. The following PowerShell example creates a separate Compose project on port 5435; it does not touch the ordinary `.env.local` PostgreSQL container:

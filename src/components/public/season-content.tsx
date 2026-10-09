@@ -6,16 +6,27 @@ import type {
 import { uiText } from '@/shared/i18n/ui-text'
 
 function formatKickoff(match: PublicMatch): string {
-  if (!match.kickoffOn) {
+  const date = match.kickoffOn
+    ? new Intl.DateTimeFormat('uk-UA', { dateStyle: 'long', timeZone: 'UTC' }).format(
+        new Date(`${match.kickoffOn}T00:00:00Z`),
+      )
+    : null
+  const time = match.kickoffAtLocal?.slice(0, 5)
+
+  if (!date && !time) {
     return match.sportingState === 'postponed'
       ? uiText.public.postponedKickoff
       : uiText.public.kickoffToBeAnnounced
   }
 
-  const date = new Intl.DateTimeFormat('uk-UA', { dateStyle: 'long', timeZone: 'UTC' }).format(
-    new Date(`${match.kickoffOn}T00:00:00Z`),
-  )
-  return match.kickoffAtLocal ? `${date}, ${match.kickoffAtLocal.slice(0, 5)}` : date
+  const kickoff =
+    date && time
+      ? `${date}, ${time}`
+      : `${date ?? uiText.public.kickoffDateToBeAnnounced} · ${time ?? uiText.public.kickoffTimeToBeAnnounced}`
+
+  return match.sportingState === 'postponed'
+    ? `${uiText.public.previousKickoff}: ${kickoff} · ${uiText.public.postponedKickoff}`
+    : kickoff
 }
 
 function matchScore(match: PublicMatch): string | null {
@@ -41,9 +52,7 @@ export function SeasonEntries({ entries }: { entries: PublicSeasonEntry[] }) {
             <li key={entry.id}>
               <span>{entry.teamName}</span>
               <span className="public-entry-state">
-                {uiText.public.participationStates[
-                  entry.participationState as keyof typeof uiText.public.participationStates
-                ] ?? entry.participationState}
+                {uiText.public.participationStates[entry.participationState]}
               </span>
             </li>
           ))}
@@ -55,16 +64,14 @@ export function SeasonEntries({ entries }: { entries: PublicSeasonEntry[] }) {
 
 function MatchItem({ match }: { match: PublicMatch }) {
   const score = matchScore(match)
-  const state =
-    uiText.public.matchStates[match.sportingState as keyof typeof uiText.public.matchStates] ??
-    match.sportingState
+  const state = uiText.public.matchStates[match.sportingState]
 
   return (
     <li className="public-match">
       <div className="public-match-main">
         <strong>
-          {match.home?.teamName} <span aria-hidden="true">—</span>
-          <span className="sr-only">проти</span> {match.away?.teamName}
+          {match.home.teamName} <span aria-hidden="true">—</span>
+          <span className="sr-only">проти</span> {match.away.teamName}
         </strong>
         {score && (
           <strong className="public-match-score">

@@ -4,7 +4,10 @@ import { createHash } from 'node:crypto'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
-import { createPublicSeasonPathQueries } from '../../src/server/queries/public-season-path'
+import {
+  createPublicSeasonContentQueries,
+  createPublicSeasonStandingsQueries,
+} from '../../src/server/queries/public-season-path'
 import { goldenId } from './golden-season-fixture'
 import { assertGoldenSeasonTarget, type GoldenSeasonTarget } from './golden-season-target'
 import { loadProjectEnv } from './load-env'
@@ -180,12 +183,15 @@ try {
     await count('from app.news_articles where lifecycle_state = $1', [state], 1)
   }
 
-  const publicQueries = createPublicSeasonPathQueries(drizzle({ client }))
+  const publicQueries = createPublicSeasonContentQueries(drizzle({ client }))
   const publicCompetitions = await publicQueries.listCompetitions()
   assert.deepEqual(publicCompetitions, [
     { id: goldenId('competition'), name: 'Вигаданий кубок громад' },
   ])
-  const publicPath = await publicQueries.getSeasonPath(goldenId('competition'), goldenId('season'))
+  const publicPath = await publicQueries.getSeasonContent(
+    goldenId('competition'),
+    goldenId('season'),
+  )
   assert.ok(publicPath)
   assert.equal(publicPath.entries.length, 4)
   assert.equal(publicPath.fixtureRounds.length, 4)
@@ -204,7 +210,11 @@ try {
   assert.equal(postponedPublicMatch?.sportingState, 'postponed')
   assert.equal(postponedPublicMatch?.kickoffOn, null)
   assert.equal(postponedPublicMatch?.result, null)
-  assert.ok(publicPath.standingsInputs.some((input) => input.publishedResults.length > 0))
+  const standings = await createPublicSeasonStandingsQueries(
+    drizzle({ client }),
+  ).getStandingsInputs(goldenId('competition'), goldenId('season'))
+  assert.ok(standings)
+  assert.ok(standings.standingsInputs.some((input) => input.publishedResults.length > 0))
 
   const stable = await client.query<{ kind: string; id: string; relation: string }>(
     `select 'stage' as kind, id::text, code as relation from app.competition_stages

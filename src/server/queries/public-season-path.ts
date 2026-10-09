@@ -8,8 +8,13 @@ import type {
   PublicMatch,
   PublicMatchParticipant,
   PublicMatchResult,
-  PublicSeasonPathQueries,
+  PublicSeasonContentQueries,
+  PublicSeasonStandingsQueries,
   PublicStandingsInput,
+} from '../../application/queries/public-season-path'
+import {
+  publicMatchSportingStates,
+  publicParticipationStates,
 } from '../../application/queries/public-season-path'
 import {
   competitions,
@@ -38,6 +43,12 @@ import { getDatabase } from '../db/client'
 import type { Database } from '../db/transaction-types'
 
 type ReadExecutor = Pick<Database, 'select'>
+
+function validatedState<T extends string>(value: string, states: readonly T[], label: string): T {
+  const state = states.find((candidate) => candidate === value)
+  if (!state) throw new Error(`Invalid public ${label} state`)
+  return state
+}
 
 const homeAssignments = alias(matchParticipantAssignments, 'public_home_assignments')
 const awayAssignments = alias(matchParticipantAssignments, 'public_away_assignments')
@@ -217,39 +228,81 @@ async function readPublishedRoundMatches(
     )
 }
 
-export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSeasonPathQueries {
+async function readPublicSeasonParent(
+  database: ReadExecutor,
+  competitionId: string,
+  seasonId: string,
+) {
+  const [parent] = await database
+    .select({
+      competitionId: competitions.id,
+      competitionName: competitions.displayName,
+      seasonId: seasons.id,
+      seasonName: seasons.name,
+      sportingState: seasons.sportingState,
+      timezone: seasons.timezone,
+      formatVersionId: seasons.currentFormatVersionId,
+    })
+    .from(seasons)
+    .innerJoin(competitions, eq(seasons.competitionId, competitions.id))
+    .where(
+      and(
+        eq(competitions.id, competitionId),
+        eq(competitions.visibility, 'public'),
+        eq(seasons.id, seasonId),
+        eq(seasons.visibility, 'public'),
+      ),
+    )
+  return parent
+}
+
+async function readPublicMatches(
+  database: ReadExecutor,
+  seasonId: string,
+  formatVersionId: string,
+) {
+  const rows = await readPublishedRoundMatches(database, seasonId, formatVersionId)
+  return rows.flatMap((row) => {
+    const home = publicParticipant(row.homeEntryId, row.homeTeamId, row.homeTeamName)
+    const away = publicParticipant(row.awayEntryId, row.awayTeamId, row.awayTeamName)
+    if (!home || !away) return []
+    const match: PublicMatch = {
+      id: row.matchId,
+      sportingState: validatedState(row.sportingState, publicMatchSportingStates, 'match sporting'),
+      home,
+      away,
+      kickoffOn: row.kickoffOn,
+      kickoffAtLocal: row.kickoffAtLocal,
+      timezone: row.timezone,
+      result: publicResult(row),
+    }
+    return [
+      {
+        stageId: row.stageId,
+        stageVersionId: row.stageVersionId,
+        roundId: row.roundId,
+        roundCode: row.roundCode,
+        roundPosition: row.roundPosition,
+        match,
+      },
+    ]
+  })
+}
+
+export function createPublicSeasonContentQueries(
+  database: ReadExecutor,
+): PublicSeasonContentQueries {
   return {
     async listCompetitions() {
-      const rows = await database
+      return database
         .select({ id: competitions.id, name: competitions.displayName })
         .from(competitions)
         .where(eq(competitions.visibility, 'public'))
         .orderBy(asc(competitions.displayName), asc(competitions.id))
-      return rows.map((row) => ({ id: row.id, name: row.name }))
     },
-    async getSeasonPath(competitionId, seasonId) {
-      const [parent] = await database
-        .select({
-          competitionId: competitions.id,
-          competitionName: competitions.displayName,
-          seasonId: seasons.id,
-          seasonName: seasons.name,
-          sportingState: seasons.sportingState,
-          timezone: seasons.timezone,
-          formatVersionId: seasons.currentFormatVersionId,
-        })
-        .from(seasons)
-        .innerJoin(competitions, eq(seasons.competitionId, competitions.id))
-        .where(
-          and(
-            eq(competitions.id, competitionId),
-            eq(competitions.visibility, 'public'),
-            eq(seasons.id, seasonId),
-            eq(seasons.visibility, 'public'),
-          ),
-        )
+    async getSeasonContent(competitionId, seasonId) {
+      const parent = await readPublicSeasonParent(database, competitionId, seasonId)
       if (!parent) return null
-
       const entryRows = await database
         .select({
           id: seasonEntries.id,
@@ -263,18 +316,9 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
         .orderBy(asc(teams.displayName), asc(seasonEntries.id))
 
       const fixtureRoundsById = new Map<string, PublicFixtureRound>()
-      const standingsByStageId = new Map<string, PublicStandingsInput>()
       if (parent.formatVersionId) {
-        const matchRows = await readPublishedRoundMatches(
-          database,
-          seasonId,
-          parent.formatVersionId,
-        )
-        for (const row of matchRows) {
-          const home = publicParticipant(row.homeEntryId, row.homeTeamId, row.homeTeamName)
-          const away = publicParticipant(row.awayEntryId, row.awayTeamId, row.awayTeamName)
-          if (!home || !away) continue
-
+        const rows = await readPublicMatches(database, seasonId, parent.formatVersionId)
+        for (const row of rows) {
           let round = fixtureRoundsById.get(row.roundId)
           if (!round) {
             round = {
@@ -286,8 +330,48 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
             }
             fixtureRoundsById.set(row.roundId, round)
           }
-          if (!standingsByStageId.has(row.stageId)) {
-            standingsByStageId.set(row.stageId, {
+          round.matches.push(row.match)
+        }
+      }
+      return {
+        competition: { id: parent.competitionId, name: parent.competitionName },
+        season: {
+          id: parent.seasonId,
+          name: parent.seasonName,
+          sportingState: parent.sportingState,
+          timezone: parent.timezone,
+        },
+        entries: entryRows.map((row) => ({
+          id: row.id,
+          teamId: row.teamId,
+          teamName: row.teamName,
+          participationState: validatedState(
+            row.participationState,
+            publicParticipationStates,
+            'participation',
+          ),
+        })),
+
+        fixtureRounds: [...fixtureRoundsById.values()],
+      }
+    },
+  }
+}
+
+export function createPublicSeasonStandingsQueries(
+  database: ReadExecutor,
+): PublicSeasonStandingsQueries {
+  return {
+    async getStandingsInputs(competitionId, seasonId) {
+      const parent = await readPublicSeasonParent(database, competitionId, seasonId)
+      if (!parent) return null
+      const standingsByStageId = new Map<string, PublicStandingsInput>()
+      if (parent.formatVersionId) {
+        const rows = await readPublicMatches(database, seasonId, parent.formatVersionId)
+        for (const row of rows) {
+          let input = standingsByStageId.get(row.stageId)
+          if (!input) {
+            input = {
               stageId: row.stageId,
               stageVersionId: row.stageVersionId,
               rankingRuleSetId: null,
@@ -295,24 +379,13 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
               tieBreakers: [],
               adjustmentDecisions: [],
               publishedResults: [],
-            })
+            }
+            standingsByStageId.set(row.stageId, input)
           }
-          const result = publicResult(row)
-          const match: PublicMatch = {
-            id: row.matchId,
-            sportingState: row.sportingState,
-            home,
-            away,
-            kickoffOn: row.kickoffOn,
-            kickoffAtLocal: row.kickoffAtLocal,
-            timezone: row.timezone,
-            result,
-          }
-          round.matches.push(match)
-          if (result && home && away) {
-            const input = standingsByStageId.get(row.stageId)!
+          const { result, home, away } = row.match
+          if (result) {
             input.publishedResults.push({
-              matchId: row.matchId,
+              matchId: row.match.id,
               resultVersionId: result.id,
               homeSeasonEntryId: home.seasonEntryId,
               awaySeasonEntryId: away.seasonEntryId,
@@ -327,7 +400,6 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
             })
           }
         }
-
         const stageVersionIds = [...standingsByStageId.values()].map(
           (input) => input.stageVersionId,
         )
@@ -419,7 +491,6 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
           }
         }
       }
-
       return {
         competition: { id: parent.competitionId, name: parent.competitionName },
         season: {
@@ -428,19 +499,12 @@ export function createPublicSeasonPathQueries(database: ReadExecutor): PublicSea
           sportingState: parent.sportingState,
           timezone: parent.timezone,
         },
-        entries: entryRows.map((row) => ({
-          id: row.id,
-          teamId: row.teamId,
-          teamName: row.teamName,
-          participationState: row.participationState,
-        })),
-        fixtureRounds: [...fixtureRoundsById.values()],
         standingsInputs: [...standingsByStageId.values()],
       }
     },
   }
 }
 
-export function getRuntimePublicSeasonPathQueries(): PublicSeasonPathQueries {
-  return createPublicSeasonPathQueries(getDatabase())
+export function getRuntimePublicSeasonContentQueries(): PublicSeasonContentQueries {
+  return createPublicSeasonContentQueries(getDatabase())
 }

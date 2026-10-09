@@ -1,3 +1,8 @@
+import type {
+  PublicMatchSportingState,
+  PublicParticipationState,
+} from '@/application/queries/public-season-path'
+
 export const uiText = {
   brand: {
     name: 'ProLeague',
@@ -39,14 +44,17 @@ export const uiText = {
     fixtureRoundsEmpty: 'Опублікованих матчів поки немає.',
     fixtureRoundLabel: 'Тур',
     kickoffToBeAnnounced: 'Дату й час повідомлять пізніше',
-    postponedKickoff: 'Нову дату повідомлять пізніше',
+    kickoffDateToBeAnnounced: 'Дату повідомлять пізніше',
+    kickoffTimeToBeAnnounced: 'Час повідомлять пізніше',
+    previousKickoff: 'Попередній початок',
+    postponedKickoff: 'Нову дату й час повідомлять пізніше',
     technicalResult: 'Технічний результат',
     participationStates: {
       registered: 'Зареєстрована',
       suspended: 'Відсторонена',
       withdrawn: 'Вибула',
       disqualified: 'Дискваліфікована',
-    },
+    } satisfies Record<PublicParticipationState, string>,
     matchStates: {
       unscheduled: 'Не призначено',
       scheduled: 'Заплановано',
@@ -55,7 +63,7 @@ export const uiText = {
       suspended: 'Призупинено',
       finished: 'Завершено',
       cancelled: 'Скасовано',
-    },
+    } satisfies Record<PublicMatchSportingState, string>,
     viewCompetition: 'Переглянути змагання',
     viewSeason: 'Переглянути сезон',
     backToCompetitions: 'До списку змагань',
