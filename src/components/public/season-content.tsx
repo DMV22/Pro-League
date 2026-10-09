@@ -6,16 +6,27 @@ import type {
 import { uiText } from '@/shared/i18n/ui-text'
 
 function formatKickoff(match: PublicMatch): string {
-  if (!match.kickoffOn) {
+  const date = match.kickoffOn
+    ? new Intl.DateTimeFormat('uk-UA', { dateStyle: 'long', timeZone: 'UTC' }).format(
+        new Date(`${match.kickoffOn}T00:00:00Z`),
+      )
+    : null
+  const time = match.kickoffAtLocal?.slice(0, 5)
+
+  if (!date && !time) {
     return match.sportingState === 'postponed'
       ? uiText.public.postponedKickoff
       : uiText.public.kickoffToBeAnnounced
   }
 
-  const date = new Intl.DateTimeFormat('uk-UA', { dateStyle: 'long', timeZone: 'UTC' }).format(
-    new Date(`${match.kickoffOn}T00:00:00Z`),
-  )
-  return match.kickoffAtLocal ? `${date}, ${match.kickoffAtLocal.slice(0, 5)}` : date
+  const kickoff =
+    date && time
+      ? `${date}, ${time}`
+      : `${date ?? uiText.public.kickoffDateToBeAnnounced} · ${time ?? uiText.public.kickoffTimeToBeAnnounced}`
+
+  return match.sportingState === 'postponed'
+    ? `${uiText.public.previousKickoff}: ${kickoff} · ${uiText.public.postponedKickoff}`
+    : kickoff
 }
 
 function matchScore(match: PublicMatch): string | null {

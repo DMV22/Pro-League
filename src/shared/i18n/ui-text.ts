@@ -39,7 +39,10 @@ export const uiText = {
     fixtureRoundsEmpty: 'Опублікованих матчів поки немає.',
     fixtureRoundLabel: 'Тур',
     kickoffToBeAnnounced: 'Дату й час повідомлять пізніше',
-    postponedKickoff: 'Нову дату повідомлять пізніше',
+    kickoffDateToBeAnnounced: 'Дату повідомлять пізніше',
+    kickoffTimeToBeAnnounced: 'Час повідомлять пізніше',
+    previousKickoff: 'Попередній початок',
+    postponedKickoff: 'Нову дату й час повідомлять пізніше',
     technicalResult: 'Технічний результат',
     participationStates: {
       registered: 'Зареєстрована',
