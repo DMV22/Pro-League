@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 
 import type {
@@ -37,6 +37,8 @@ import {
   pointsSchemes,
   rankingRuleSets,
   standingAdjustmentDecisions,
+  stageParticipantSlots,
+  stageParticipantAssignments,
   tieBreakers,
 } from '../../modules/standings-progression/infrastructure/schema'
 import { getDatabase } from '../db/client'
@@ -367,25 +369,107 @@ export function createPublicSeasonStandingsQueries(
       if (!parent) return null
       const standingsByStageId = new Map<string, PublicStandingsInput>()
       if (parent.formatVersionId) {
-        const rows = await readPublicMatches(database, seasonId, parent.formatVersionId)
-        for (const row of rows) {
-          let input = standingsByStageId.get(row.stageId)
-          if (!input) {
-            input = {
-              stageId: row.stageId,
-              stageVersionId: row.stageVersionId,
-              rankingRuleSetId: null,
-              pointsScheme: null,
-              tieBreakers: [],
-              adjustmentDecisions: [],
-              publishedResults: [],
-            }
-            standingsByStageId.set(row.stageId, input)
+        // Start with Stages, not Matches: assigned teams with zero games still have a row.
+        const stages = await database
+          .select({
+            stageId: competitionStages.id,
+            stageVersionId: competitionStageVersions.id,
+            stageName: competitionStageVersions.name,
+          })
+          .from(competitionStages)
+          .innerJoin(
+            competitionStageVersions,
+            and(
+              eq(competitionStages.currentVersionId, competitionStageVersions.id),
+              eq(competitionStageVersions.stageId, competitionStages.id),
+            ),
+          )
+          .where(
+            and(
+              eq(competitionStages.seasonId, seasonId),
+              eq(competitionStageVersions.formatVersionId, parent.formatVersionId),
+              eq(competitionStageVersions.formatType, 'league'),
+              isNull(competitionStageVersions.groupingMode),
+            ),
+          )
+          .orderBy(asc(competitionStageVersions.position))
+        for (const stage of stages)
+          standingsByStageId.set(stage.stageId, {
+            ...stage,
+            inputUnavailable: false,
+            participants: [],
+            rankingRuleSetId: null,
+            pointsScheme: null,
+            tieBreakers: [],
+            adjustmentDecisions: [],
+            publishedResults: [],
+          })
+        if (stages.length > 0) {
+          const participants = await database
+            .select({
+              stageId: stageParticipantSlots.stageId,
+              entryId: seasonEntries.id,
+              teamId: teams.id,
+              teamName: teams.displayName,
+              participationState: seasonEntries.participationState,
+            })
+            .from(stageParticipantSlots)
+            .leftJoin(
+              stageParticipantAssignments,
+              and(
+                eq(stageParticipantSlots.currentAssignmentId, stageParticipantAssignments.id),
+                eq(stageParticipantAssignments.slotId, stageParticipantSlots.id),
+              ),
+            )
+            .leftJoin(
+              seasonEntries,
+              and(
+                eq(stageParticipantAssignments.seasonEntryId, seasonEntries.id),
+                eq(seasonEntries.seasonId, seasonId),
+              ),
+            )
+            .leftJoin(
+              teams,
+              and(eq(seasonEntries.teamId, teams.id), eq(teams.visibility, 'public')),
+            )
+            .where(
+              inArray(
+                stageParticipantSlots.stageVersionId,
+                stages.map((stage) => stage.stageVersionId),
+              ),
+            )
+            .orderBy(asc(stageParticipantSlots.position))
+          for (const row of participants) {
+            const input = standingsByStageId.get(row.stageId)
+            if (!input) continue
+            if (!row.entryId || !row.teamId || !row.teamName || !row.participationState)
+              input.inputUnavailable = true
+            else
+              input.participants.push({
+                seasonEntryId: row.entryId,
+                teamId: row.teamId,
+                teamName: row.teamName,
+                participationState: row.participationState,
+              })
           }
-          const { result, home, away } = row.match
+        }
+        const rows =
+          stages.length > 0
+            ? await readPublishedRoundMatches(database, seasonId, parent.formatVersionId)
+            : []
+        for (const row of rows) {
+          const input = standingsByStageId.get(row.stageId)
+          if (!input) continue
+          const home = publicParticipant(row.homeEntryId, row.homeTeamId, row.homeTeamName)
+          const away = publicParticipant(row.awayEntryId, row.awayTeamId, row.awayTeamName)
+          const result = publicResult(row)
+          if (!home || !away || (row.sportingState === 'finished' && !result)) {
+            input.inputUnavailable = true
+            continue
+          }
           if (result) {
             input.publishedResults.push({
-              matchId: row.match.id,
+              matchId: row.matchId,
               resultVersionId: result.id,
               homeSeasonEntryId: home.seasonEntryId,
               awaySeasonEntryId: away.seasonEntryId,
