@@ -236,6 +236,7 @@ const governanceTables = [
 
 const operationsTables = [
   'outbox_messages',
+  'public_projection_revisions',
   'command_executions',
   'scheduled_jobs',
   'job_runs',
