@@ -35,6 +35,7 @@
     "db:verify-repositories": "tsx scripts/db/verify-repositories.ts",
     "db:verify-public-queries": "node --conditions=react-server --import tsx scripts/db/verify-public-queries.ts",
     "db:verify-public-navigation": "node --conditions=react-server --import tsx scripts/db/verify-public-navigation.ts",
+    "db:verify-public-cache": "node --conditions=react-server --import tsx scripts/db/verify-public-cache.ts",
     "db:seed-golden": "tsx scripts/db/seed-golden-season.ts",
     "db:verify-golden": "node --conditions=react-server --import tsx scripts/db/verify-golden-season.ts",
     "db:integration": "tsx scripts/db/verify-integration.ts",

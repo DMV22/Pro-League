@@ -248,7 +248,7 @@ try {
   const ledger = await pool.query<{ count: string }>(
     'SELECT count(*) FROM app.__drizzle_migrations',
   )
-  assert.equal(Number(ledger.rows[0]?.count), 2, 'Apply both reviewed migrations first')
+  assert.equal(Number(ledger.rows[0]?.count), 3, 'Apply all three reviewed migrations first')
   const data = await pool.query<{ total: string }>(
     `SELECT (SELECT count(*) FROM app.competitions) +
             (SELECT count(*) FROM app.scheduled_jobs) +
@@ -260,6 +260,7 @@ try {
   runExisting('scripts/db/verify-repositories.ts')
   runExisting('scripts/db/verify-public-queries.ts')
   runExisting('scripts/db/verify-public-navigation.ts')
+  runExisting('scripts/db/verify-public-cache.ts')
   await verifyRoleAndRollback()
   await verifyQueueClaims()
   await verifyParentBeforeChildLock()
