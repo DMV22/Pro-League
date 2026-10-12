@@ -2,6 +2,40 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+.public-standings-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.public-standings-scroll:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.public-standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.public-standings-table caption {
+  text-align: left;
+  padding-block: 1rem;
+}
+
+.public-standings-table th,
+.public-standings-table td {
+  padding: 0.75rem;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.public-standings-table th:nth-child(2),
+.public-standings-table tbody th {
+  text-align: left;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
