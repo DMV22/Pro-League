@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3100'
-const usesExternalServer = Boolean(process.env.PLAYWRIGHT_BASE_URL)
+const usesExternalServer = Boolean(
+  process.env.PLAYWRIGHT_BASE_URL || process.env.PUBLIC_CACHE_BROWSER_FIXTURE,
+)
 
 export default defineConfig({
   testDir: './tests',

@@ -16,7 +16,11 @@ assert.equal(database, 'proleague_upgrade_ci')
 const manifest = readMigrationManifest()
 assert.deepEqual(
   manifest.map(({ tag }) => tag),
-  ['0000_initial_proleague_schema', '0001_current_participant_uniqueness'],
+  [
+    '0000_initial_proleague_schema',
+    '0001_current_participant_uniqueness',
+    '0002_public_projection_revisions',
+  ],
   'Upgrade rehearsal needs an explicit update for a new release migration',
 )
 
@@ -36,13 +40,15 @@ try {
     `CREATE TABLE app.__drizzle_migrations
       (id serial PRIMARY KEY, hash text NOT NULL, created_at bigint)`,
   )
-  for (const statement of manifest[0].statements) {
-    if (statement.trim()) await client.query(statement)
+  for (const previous of manifest.slice(0, -1)) {
+    for (const statement of previous.statements) {
+      if (statement.trim()) await client.query(statement)
+    }
+    await client.query('INSERT INTO app.__drizzle_migrations (hash, created_at) VALUES ($1, $2)', [
+      previous.hash,
+      previous.createdAt,
+    ])
   }
-  await client.query('INSERT INTO app.__drizzle_migrations (hash, created_at) VALUES ($1, $2)', [
-    manifest[0].hash,
-    manifest[0].createdAt,
-  ])
   await seedGoldenSeason(client)
   await client.query('COMMIT')
   console.info('Previous-release schema and Golden Season fixture prepared in proleague_upgrade_ci')

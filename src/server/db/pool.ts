@@ -19,6 +19,8 @@ export function getRuntimePool(): pg.Pool {
       max: RUNTIME_POOL_MAX,
       connectionTimeoutMillis: 5_000,
       idleTimeoutMillis: 30_000,
+      statement_timeout: 5_000,
+      query_timeout: 6_000,
     })
 
     pool.on('error', (error) => {

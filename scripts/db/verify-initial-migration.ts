@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 import { createLocalClient } from './connect'
+import { readMigrationManifest } from './migration-ledger'
 
 const client = createLocalClient('MIGRATION_DATABASE_URL')
 
@@ -70,8 +71,14 @@ try {
   `)
   const row = inventory.rows[0]
   assert(row, 'Migration inventory is empty')
-  assert(Number(row.table_count) === 210, 'Expected all 210 domain tables')
-  assert(Number(row.ledger_count) === 2, 'Expected both reviewed migrations')
+  assert(
+    Number(row.table_count) === 211,
+    'Expected 210 domain tables and the public projection clock',
+  )
+  assert(
+    Number(row.ledger_count) === readMigrationManifest().length,
+    'Expected all reviewed migrations',
+  )
   assert(Number(row.owner_pointer_count) === 37, 'Expected 37 direct owner-pointer FKs')
   assert(Number(row.immutable_trigger_count) === 125, 'Expected 125 immutable-table guards')
   assert(Number(row.exclusion_count) === 2, 'Expected both GiST range exclusions')

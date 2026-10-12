@@ -5,11 +5,10 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/feedback-state'
-import {
-  hasPublicDatabaseConfiguration,
-  resolveRuntimePublicCompetition,
-} from '@/server/queries/public-navigation'
+import { hasPublicDatabaseConfiguration } from '@/server/queries/public-navigation'
 import { uiText } from '@/shared/i18n/ui-text'
+import { getRuntimePublicProjection } from '@/server/queries/public-projection-view'
+import { ProjectionStatus } from '@/components/public/projection-status'
 
 type Props = PageProps<'/competitions/[competitionSlug]'>
 type ContentProps = Pick<Props, 'params'>
@@ -18,12 +17,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { competitionSlug } = await params
   if (!hasPublicDatabaseConfiguration()) return { robots: { index: false } }
 
-  const result = await resolveRuntimePublicCompetition(competitionSlug)
-  if (result.kind !== 'found') return { robots: { index: false } }
+  const result = await getRuntimePublicProjection({ kind: 'competition', competitionSlug })
+  if (
+    result.kind !== 'ready' ||
+    result.freshness !== 'fresh' ||
+    result.payload.kind !== 'competition'
+  )
+    return { robots: { index: false } }
 
   return {
-    title: result.value.competition.name,
-    description: result.value.competition.description ?? uiText.public.seasonsDescription,
+    title: result.payload.competition.name,
+    description: result.payload.competition.description ?? uiText.public.seasonsDescription,
   }
 }
 
@@ -41,13 +45,23 @@ async function CompetitionContent({ params }: ContentProps) {
     )
   }
 
-  const result = await resolveRuntimePublicCompetition(competitionSlug)
+  const result = await getRuntimePublicProjection({ kind: 'competition', competitionSlug })
   if (result.kind === 'redirect') permanentRedirect(result.pathname)
   if (result.kind === 'notFound') notFound()
 
-  const { competition, seasons } = result.value
+  if (result.kind === 'unavailable')
+    return (
+      <ErrorState
+        title={uiText.public.databaseUnavailableTitle}
+        description={uiText.public.databaseUnavailableDescription}
+        headingLevel={1}
+      />
+    )
+  if (result.payload.kind !== 'competition') throw new Error('Invalid Competition projection')
+  const { competition, seasons } = result.payload
   return (
     <div className="public-page">
+      <ProjectionStatus freshness={result.freshness} lastUpdatedAt={result.lastUpdatedAt} />
       <nav className="public-breadcrumbs" aria-label="Навігаційний ланцюжок">
         <Link href="/#competitions">{uiText.public.backToCompetitions}</Link>
       </nav>

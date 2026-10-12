@@ -15,6 +15,19 @@ import { adminIdentities } from '../../identity-access/infrastructure/schema'
 import { immutableRecordColumns, mutableRecordColumns } from '../../../server/db/columns'
 import { appSchema } from '../../../server/db/schema'
 
+// Technical read-model clocks, maintained only by reviewed database triggers.
+export const publicProjectionRevisions = appSchema.table(
+  'public_projection_revisions',
+  {
+    projectionKey: text('projection_key').primaryKey(),
+    revision: bigint('revision', { mode: 'bigint' })
+      .notNull()
+      .default(sql`1`),
+    lastUpdatedAt: timestamp('last_updated_at', { withTimezone: true }),
+  },
+  (table) => [check('public_projection_revisions_positive_ck', sql`${table.revision} > 0`)],
+)
+
 // Queue payloads contain typed IDs and versions, never raw personal records or credentials.
 export const outboxMessages = appSchema.table(
   'outbox_messages',

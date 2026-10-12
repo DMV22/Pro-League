@@ -11,6 +11,8 @@ import {
   createPublicSeasonStandingsQueries,
 } from '../../src/server/queries/public-season-path'
 import { createPublicLeagueStandingsQuery } from '../../src/server/queries/public-league-standings'
+import { createPublicProjectionStateQuery } from '../../src/server/queries/public-projection-state'
+import { createPublicProjectionSnapshotQuery } from '../../src/server/queries/public-projection-snapshot'
 import { goldenId } from './golden-season-fixture'
 import { assertGoldenSeasonTarget, type GoldenSeasonTarget } from './golden-season-target'
 import { loadProjectEnv } from './load-env'
@@ -219,6 +221,21 @@ try {
   assert.ok(standings)
   assert.ok(standings.standingsInputs.some((input) => input.publishedResults.length > 0))
   const goldenDatabase = drizzle({ client })
+  const request = {
+    kind: 'season' as const,
+    competitionSlug: 'golden-cup',
+    seasonSlug: '2026-golden',
+  }
+  const state = await createPublicProjectionStateQuery(goldenDatabase).read(request)
+  assert.ok(state.kind === 'found')
+  const cachedSnapshot = await createPublicProjectionSnapshotQuery(goldenDatabase).read(
+    request,
+    state.state,
+  )
+  assert.deepEqual(cachedSnapshot.state, state.state)
+  assert.equal(cachedSnapshot.payload.kind, 'season')
+  if (cachedSnapshot.payload.kind === 'season')
+    assert.equal(cachedSnapshot.payload.content.fixtureRounds.length, 4)
   const inspectedSnapshot: Pick<Database, 'transaction'> = {
     transaction: (callback, config) =>
       goldenDatabase.transaction(async (transaction) => {

@@ -56,13 +56,14 @@ try {
     throw new Error('Database identity or reviewed app migration does not match seed target')
   }
   const tables = await client.query<{ tablename: string }>(
-    "select tablename from pg_tables where schemaname = 'app' and tablename <> '__drizzle_migrations' order by tablename",
+    "select tablename from pg_tables where schemaname = 'app' and tablename not in ('__drizzle_migrations', 'public_projection_revisions') order by tablename",
   )
   if (tables.rows.length < 50 || !tables.rows.some((row) => row.tablename === 'competitions')) {
     throw new Error('The complete reviewed app schema must be migrated before seeding')
   }
 
   if (reset) {
+    // Preserve technical clocks: seeding must advance, not reuse, previously cached revisions.
     // Immutable-history triggers deliberately forbid TRUNCATE. They are disabled only
     // within this transaction on a database whose exact disposable identity passed above.
     for (const { tablename } of tables.rows) {

@@ -3,11 +3,10 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/feedback-state'
-import {
-  hasPublicDatabaseConfiguration,
-  listRuntimePublicCompetitions,
-} from '@/server/queries/public-navigation'
+import { hasPublicDatabaseConfiguration } from '@/server/queries/public-navigation'
 import { uiText } from '@/shared/i18n/ui-text'
+import { getRuntimePublicProjection } from '@/server/queries/public-projection-view'
+import { ProjectionStatus } from '@/components/public/projection-status'
 
 async function CompetitionList() {
   await connection()
@@ -21,33 +20,47 @@ async function CompetitionList() {
     )
   }
 
-  const competitions = await listRuntimePublicCompetitions()
+  const view = await getRuntimePublicProjection({ kind: 'home' })
+  if (view.kind !== 'ready' || view.payload.kind !== 'home')
+    return (
+      <ErrorState
+        title={uiText.public.databaseUnavailableTitle}
+        description={uiText.public.databaseUnavailableDescription}
+      />
+    )
+  const { competitions } = view.payload
   if (competitions.length === 0) {
     return (
-      <EmptyState
-        title={uiText.public.competitionsEmptyTitle}
-        description={uiText.public.competitionsEmptyDescription}
-      />
+      <>
+        <ProjectionStatus freshness={view.freshness} lastUpdatedAt={view.lastUpdatedAt} />
+        <EmptyState
+          title={uiText.public.competitionsEmptyTitle}
+          description={uiText.public.competitionsEmptyDescription}
+        />
+      </>
     )
   }
 
   return (
-    <ul className="public-index" aria-label={uiText.public.competitionsTitle}>
-      {competitions.map((competition) => (
-        <li key={competition.id}>
-          <Link
-            className="public-index-link"
-            href={`/competitions/${encodeURIComponent(competition.slug)}`}
-          >
-            <span className="public-index-copy">
-              <strong>{competition.name}</strong>
-              {competition.description && <span>{competition.description}</span>}
-            </span>
-            <span className="public-index-action">{uiText.public.viewCompetition}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ProjectionStatus freshness={view.freshness} lastUpdatedAt={view.lastUpdatedAt} />
+      <ul className="public-index" aria-label={uiText.public.competitionsTitle}>
+        {competitions.map((competition) => (
+          <li key={competition.id}>
+            <Link
+              className="public-index-link"
+              href={`/competitions/${encodeURIComponent(competition.slug)}`}
+            >
+              <span className="public-index-copy">
+                <strong>{competition.name}</strong>
+                {competition.description && <span>{competition.description}</span>}
+              </span>
+              <span className="public-index-action">{uiText.public.viewCompetition}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 

@@ -8,9 +8,11 @@ test('database failure shows an accessible retry state without exposing connecti
 }) => {
   await page.goto('/')
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Не вдалося завантажити сторінку' }),
+    page.getByRole('heading', { name: 'Публічні дані тимчасово недоступні' }),
   ).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Спробувати ще раз' })).toBeVisible()
+  await expect(
+    page.getByText('Не вдалося отримати підтверджену інформацію. Спробуйте повернутися пізніше.'),
+  ).toBeVisible()
   await expect(page.getByText(/ECONNREFUSED|postgresql:\/\//)).toHaveCount(0)
 
   const results = await new AxeBuilder({ page })
