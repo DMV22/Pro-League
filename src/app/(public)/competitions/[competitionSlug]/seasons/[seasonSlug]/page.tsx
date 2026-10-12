@@ -6,6 +6,8 @@ import { Suspense } from 'react'
 
 import { ErrorState, LoadingState } from '@/components/ui/feedback-state'
 import { FixtureRounds, SeasonEntries } from '@/components/public/season-content'
+import { SeasonStandings } from '@/components/public/season-standings'
+import { getRuntimePublicLeagueStandingsQuery } from '@/server/queries/public-league-standings'
 import {
   hasPublicDatabaseConfiguration,
   resolveRuntimePublicSeason,
@@ -54,11 +56,11 @@ async function SeasonContent({ params }: ContentProps) {
   if (result.kind === 'notFound') notFound()
 
   const { competition, season } = result.value
-  const seasonPath = await getRuntimePublicSeasonContentQueries().getSeasonContent(
-    competition.id,
-    season.id,
-  )
-  if (!seasonPath) notFound()
+  const [seasonPath, standings] = await Promise.all([
+    getRuntimePublicSeasonContentQueries().getSeasonContent(competition.id, season.id),
+    getRuntimePublicLeagueStandingsQuery().getStandings(competition.id, season.id),
+  ])
+  if (!seasonPath || !standings) notFound()
 
   return (
     <div className="public-page">
@@ -97,6 +99,7 @@ async function SeasonContent({ params }: ContentProps) {
         )}
       </section>
       <SeasonEntries entries={seasonPath.entries} />
+      <SeasonStandings stages={standings.stages} />
       <FixtureRounds rounds={seasonPath.fixtureRounds} />
     </div>
   )

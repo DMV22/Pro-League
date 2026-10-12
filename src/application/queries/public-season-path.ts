@@ -73,29 +73,8 @@ export type PublicFixtureRound = {
   matches: PublicMatch[]
 }
 
-export type PublicStandingsInput = {
-  stageId: string
-  stageVersionId: string
-  rankingRuleSetId: string | null
-  pointsScheme: { win: number; draw: number; loss: number } | null
-  tieBreakers: Array<{ position: number; criterion: string; direction: string }>
-  adjustmentDecisions: Array<{
-    id: string
-    seasonEntryId: string
-    action: string
-    pointsDelta: number | null
-    effectiveOn: string
-    supersedesDecisionId: string | null
-  }>
-  publishedResults: Array<{
-    matchId: string
-    resultVersionId: string
-    homeSeasonEntryId: string
-    awaySeasonEntryId: string
-    homeGoals: number
-    awayGoals: number
-  }>
-}
+export type PublicStandingsInput =
+  import('../../modules/standings-progression/domain/provisional-league-standings').LeagueStandingsInput
 
 export type PublicSeasonContent = {
   competition: PublicCompetition
@@ -120,7 +99,7 @@ export type PublicSeasonStandingsInputs = Pick<PublicSeasonContent, 'competition
 }
 
 export interface PublicSeasonStandingsQueries {
-  /** Null means the Competition or Season is missing or not Public. No snapshot guarantee across SELECTs. */
+  /** Low-level inputs: null means a missing/private parent. The caller must own the snapshot; runtime callers use createPublicLeagueStandingsQuery. */
   getStandingsInputs(
     competitionId: string,
     seasonId: string,

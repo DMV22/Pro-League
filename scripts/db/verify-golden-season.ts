@@ -3,11 +3,14 @@ import { createHash } from 'node:crypto'
 
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
+import { sql } from 'drizzle-orm'
+import type { Database } from '../../src/server/db/transaction-types'
 
 import {
   createPublicSeasonContentQueries,
   createPublicSeasonStandingsQueries,
 } from '../../src/server/queries/public-season-path'
+import { createPublicLeagueStandingsQuery } from '../../src/server/queries/public-league-standings'
 import { goldenId } from './golden-season-fixture'
 import { assertGoldenSeasonTarget, type GoldenSeasonTarget } from './golden-season-target'
 import { loadProjectEnv } from './load-env'
@@ -215,6 +218,102 @@ try {
   ).getStandingsInputs(goldenId('competition'), goldenId('season'))
   assert.ok(standings)
   assert.ok(standings.standingsInputs.some((input) => input.publishedResults.length > 0))
+  const goldenDatabase = drizzle({ client })
+  const inspectedSnapshot: Pick<Database, 'transaction'> = {
+    transaction: (callback, config) =>
+      goldenDatabase.transaction(async (transaction) => {
+        const settings = await transaction.execute<{ isolation: string; readonly: string }>(
+          sql`select current_setting('transaction_isolation') as isolation, current_setting('transaction_read_only') as readonly`,
+        )
+        assert.equal(settings.rows[0].isolation, 'repeatable read')
+        assert.equal(settings.rows[0].readonly, 'on')
+        return callback(transaction)
+      }, config),
+  }
+  const projection = await createPublicLeagueStandingsQuery(inspectedSnapshot).getStandings(
+    goldenId('competition'),
+    goldenId('season'),
+    new Date('2026-04-07T12:00:00Z'),
+  )
+  assert.ok(projection)
+  assert.equal(projection.stages.length, 1, 'Only standalone League is supported in M3')
+  const league = projection.stages[0]
+  assert.equal(league.kind, 'available')
+  if (league.kind === 'available') {
+    assert.deepEqual(
+      league.rows.map((row) => ({
+        position: row.position,
+        team: row.teamName,
+        played: row.played,
+        wins: row.wins,
+        draws: row.draws,
+        losses: row.losses,
+        gf: row.goalsFor,
+        ga: row.goalsAgainst,
+        gd: row.goalDifference,
+        adjustment: row.adjustment,
+        points: row.points,
+      })),
+      [
+        {
+          position: 1,
+          team: 'ФК Луг (демо)',
+          played: 1,
+          wins: 1,
+          draws: 0,
+          losses: 0,
+          gf: 3,
+          ga: 0,
+          gd: 3,
+          adjustment: 0,
+          points: 3,
+        },
+        {
+          position: 2,
+          team: 'ФК Явір (демо)',
+          played: 0,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          gf: 0,
+          ga: 0,
+          gd: 0,
+          adjustment: 0,
+          points: 0,
+        },
+        {
+          position: 3,
+          team: 'ФК Берест (демо)',
+          played: 1,
+          wins: 0,
+          draws: 0,
+          losses: 1,
+          gf: 0,
+          ga: 3,
+          gd: -3,
+          adjustment: -1,
+          points: -1,
+        },
+      ],
+    )
+  }
+  for (const [instant, date, expectedPoints] of [
+    ['2026-04-05T20:30:00Z', '2026-04-05', 0],
+    ['2026-04-05T21:30:00Z', '2026-04-06', -1],
+  ] as const) {
+    const boundary = await createPublicLeagueStandingsQuery(drizzle({ client })).getStandings(
+      goldenId('competition'),
+      goldenId('season'),
+      new Date(instant),
+    )
+    assert.equal(boundary?.asOf, date, 'Use the Season timezone, not the server UTC day')
+    const stage = boundary?.stages[0]
+    assert.ok(stage?.kind === 'available')
+    assert.equal(
+      stage.rows.find((row) => row.seasonEntryId === goldenId('entry-0'))?.points,
+      expectedPoints,
+    )
+  }
 
   const stable = await client.query<{ kind: string; id: string; relation: string }>(
     `select 'stage' as kind, id::text, code as relation from app.competition_stages

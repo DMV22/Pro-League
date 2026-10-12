@@ -33,6 +33,7 @@ import {
 import {
   pointsSchemes,
   rankingRuleSets,
+  stageParticipantAssignments,
   stageParticipantSlots,
   standingAdjustmentDecisions,
   tieBreakers,
@@ -43,6 +44,7 @@ import {
   createPublicSeasonStandingsQueries,
 } from '../../src/server/queries/public-season-path'
 import { loadProjectEnv } from './load-env'
+import { calculateProvisionalLeagueStandings } from '../../src/modules/standings-progression/domain/provisional-league-standings'
 
 loadProjectEnv()
 const url = readDatabaseUrl('DATABASE_URL')
@@ -523,6 +525,11 @@ try {
   assert.equal(standings.standingsInputs[0].adjustmentDecisions[0].pointsDelta, -2)
   assert.deepEqual(JSON.parse(JSON.stringify(path)), path)
   assert.deepEqual(JSON.parse(JSON.stringify(standings)), standings)
+  assert.equal(
+    calculateProvisionalLeagueStandings(standings.standingsInputs[0], '2026-09-03').kind,
+    'unavailable',
+    'Unresolved/private participants cannot produce a partial table',
+  )
 
   for (const invalidState of [
     { field: 'participation_state', label: 'participation' },
@@ -591,6 +598,118 @@ try {
   )
   assert.equal(correctedStandings?.standingsInputs[0].publishedResults[0].homeGoals, 0)
   assert.equal(correctedStandings?.standingsInputs[0].publishedResults[0].awayGoals, 3)
+
+  // Every mutation below belongs to the existing rollback-only disposable fixture.
+  await database.insert(stageParticipantAssignments).values([
+    {
+      id: uid(101),
+      slotId: ids.participantA,
+      seasonEntryId: ids.entryA,
+      reason: 'Synthetic assignment',
+      actorId,
+    },
+    {
+      id: uid(102),
+      slotId: ids.participantB,
+      seasonEntryId: ids.entryB,
+      reason: 'Synthetic assignment',
+      actorId,
+    },
+  ])
+  for (const [slotId, assignmentId] of [
+    [ids.participantA, uid(101)],
+    [ids.participantB, uid(102)],
+  ]) {
+    await database
+      .update(stageParticipantSlots)
+      .set({ currentAssignmentId: assignmentId })
+      .where(eq(stageParticipantSlots.id, slotId))
+  }
+  await database
+    .update(matches)
+    .set({ visibility: 'private' })
+    .where(eq(matches.id, ids.publicMatchB))
+  const readLeague = async (date: string) => {
+    const inputs = await standingsQueries.getStandingsInputs(ids.competition, ids.season)
+    assert.ok(inputs)
+    return calculateProvisionalLeagueStandings(inputs.standingsInputs[0], date)
+  }
+  const technicalLeague = await readLeague('2026-09-03')
+  assert.equal(technicalLeague.kind, 'available')
+  if (technicalLeague.kind === 'available') {
+    assert.deepEqual(
+      technicalLeague.rows.map((row) => [row.seasonEntryId, row.played, row.goalsFor, row.points]),
+      [
+        [ids.entryB, 1, 3, 3],
+        [ids.entryA, 1, 0, -2],
+      ],
+    )
+  }
+  await database.update(teams).set({ visibility: 'private' }).where(eq(teams.id, ids.teamB))
+  assert.equal(
+    (await readLeague('2026-09-03')).kind,
+    'unavailable',
+    'A private Stage participant cannot silently disappear',
+  )
+  await database.update(teams).set({ visibility: 'public' }).where(eq(teams.id, ids.teamB))
+  await database.update(matches).set({ visibility: 'private' }).where(eq(matches.id, ids.matchA))
+  const zeroLeague = await readLeague('2026-09-01')
+  assert.equal(zeroLeague.kind, 'available')
+  if (zeroLeague.kind === 'available')
+    assert.deepEqual(
+      zeroLeague.rows.map((row) => [row.played, row.points, row.position]),
+      [
+        [0, 0, 1],
+        [0, 0, 1],
+      ],
+    )
+  await database.update(matches).set({ visibility: 'public' }).where(eq(matches.id, ids.matchA))
+  await database.insert(standingAdjustmentDecisions).values([
+    {
+      id: uid(103),
+      stageId: ids.stage,
+      seasonEntryId: ids.entryA,
+      action: 'replace',
+      pointsDelta: -1,
+      effectiveOn: '2026-09-04',
+      supersedesDecisionId: ids.publicAdjustment,
+      reason: 'Synthetic replacement',
+      actorId,
+    },
+    {
+      id: uid(104),
+      stageId: ids.stage,
+      seasonEntryId: ids.entryA,
+      action: 'revoke',
+      pointsDelta: null,
+      effectiveOn: '2026-09-05',
+      supersedesDecisionId: uid(103),
+      reason: 'Synthetic revocation',
+      actorId,
+    },
+  ])
+  for (const [date, points] of [
+    ['2026-09-03', -2],
+    ['2026-09-04', -1],
+    ['2026-09-05', 0],
+  ] as const) {
+    const league = await readLeague(date)
+    assert.equal(league.kind, 'available')
+    if (league.kind === 'available')
+      assert.equal(league.rows.find((row) => row.seasonEntryId === ids.entryA)?.points, points)
+  }
+  await database.insert(tieBreakers).values({
+    id: uid(105),
+    rankingRuleSetId: ids.rankingRules,
+    position: 2,
+    criterion: 'head_to_head_points',
+  })
+  assert.deepEqual(await readLeague('2026-09-05'), {
+    stageId: ids.stage,
+    stageName: 'League stage',
+    kind: 'unavailable',
+    reason: 'unsupported_rules',
+  })
 
   console.log(
     'Public Query Layer visibility, current-result, empty/missing, and serialization checks passed',

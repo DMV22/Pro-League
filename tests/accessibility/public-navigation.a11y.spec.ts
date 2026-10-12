@@ -20,6 +20,7 @@ for (const route of [
       await expect(page.getByRole('region', { name: 'Учасники сезону' })).toBeVisible()
       await expect(page.getByRole('region', { name: 'Тур L1' })).toContainText('0:3')
       await expect(page.getByRole('region', { name: 'Тур L2' })).toContainText('Перенесено')
+      await expect(page.getByRole('table', { name: /Попередня турнірна таблиця/ })).toBeVisible()
     }
 
     const results = await new AxeBuilder({ page })
