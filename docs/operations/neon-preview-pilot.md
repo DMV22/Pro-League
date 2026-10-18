@@ -156,7 +156,8 @@ If cleanup fails, stop new allocations, alert the Technical Operator and record 
 issue with non-secret IDs and timestamps. No automatic deletion is implemented by #95.
 Remove operator-session `NEON_API_KEY`, `MIGRATION_DATABASE_URL`, `SEED_DATABASE_URL`,
 `PREVIEW_DATABASE_IDENTITY`, `PREVIEW_RUNTIME_PASSWORD`, `PLAYWRIGHT_BASE_URL` and
-`PUBLIC_PREVIEW_SMOKE` when done. Restore any pre-existing values if this session reused them.
+`PUBLIC_PREVIEW_SMOKE` and `PREVIEW_RUNTIME_DATABASE_URL` when done. Clear any credential-bearing
+clipboard contents too. Restore any pre-existing values if this session reused them.
 
 ## Status
 
@@ -169,10 +170,60 @@ The additional local Golden verifier initially could not connect to `127.0.0.1:5
 (ECONNREFUSED). On 2026-10-18, the user started the container and confirmed that verification
 passed with the expected relationship digest above. No local seed/reset was performed by the agent.
 
-The project/empty-parent read-only preflight is verified. The PR child, remote migration/seed,
-read-only login, Render binding, successful deployed smoke and cleanup evidence remain pending
-until the implementation is reviewed and an actual PR number exists. Do not close #95 on local
-test results alone.
+### Cloud pilot evidence (2026-10-19)
+
+The manual cloud pilot is now functionally verified; merge and resource cleanup are still pending.
+These are non-secret resource identifiers, not connection strings:
+
+| Resource | Recorded identity |
+| --- | --- |
+| Pull request | [#103](https://github.com/DMV22/Pro-League/pull/103), open at evidence collection |
+| Reviewed PR head | `2b343597cd8a125a8a01f6870c24c9463b683769` |
+| Neon project | `proleague-preview` / `long-sea-15202409` |
+| Empty root parent | `preview-empty` / `br-divine-leaf-b90tlpj2` |
+| Isolated child | `pr-103` / `br-late-math-b9vj2lql` |
+| Child endpoint | `ep-cool-sun-b9d6wprk` |
+| PR database | `proleague_golden_seed_pr_103` |
+| Runtime login | `preview_reader_pr_103` |
+| Tested Render Preview | https://pro-league-development-pr-103.onrender.com |
+
+Evidence and its source:
+
+- Read-only Neon inspection confirmed the child belongs to the pinned empty parent and its
+  dedicated database initially had no app schema or user relations. The parent had zero user
+  relations and no PR-specific database; no migration or seed was run against the parent.
+- The operator supplied successful terminal output for `db:migrate:preview`, `db:seed-golden`
+  and `db:verify-golden`, all explicitly targeting PR 103 and `proleague_golden_seed_pr_103`.
+  Golden verification reported the expected digest
+  `356709a5a2fd1b8d430751f3d00a1e071d85f742d05f730cc0caec9cadc9c961`.
+- The operator confirmed successful `db:prepare-preview-reader` and deployment after the
+  Preview-only configuration steps. No credential value is recorded here.
+- The agent ran the deployed browser smoke with the external Preview URL, `PUBLIC_PREVIEW_SMOKE=1`
+  and `--project=chromium --project=chromium-mobile --workers=1`: **2 passed (22.6s)**.
+  Home, Competition and Season returned successful HTTP responses with Golden content in
+  server HTML, the synthetic Preview notice, robots metadata and `X-Robots-Tag: noindex`.
+  The Season page also displayed its heading, participants heading and a table; none of the
+  checked HTML contained the public-data-unavailable message.
+- Missing/mismatched configuration fail-closed behavior was verified separately by the
+  local/CI isolation tests, including zero database connections. The live Preview was not
+  deliberately misconfigured during this smoke.
+- GitHub checks for the recorded PR head passed:
+  [PR baseline](https://github.com/DMV22/Pro-League/actions/runs/39161672895) and
+  [Preview Lighthouse](https://github.com/DMV22/Pro-League/actions/runs/39171512582).
+  Browser smoke is functional evidence, not a new Performance measurement.
+
+Remaining completion evidence:
+
+- Record the Preview's Render service ID and confirm its deployed commit matches the reviewed
+  PR head before merge. The PR head above is GitHub evidence, not independently captured
+  Render deployment metadata.
+- Review and commit this evidence update; rerun applicable CI for any new commit before merge.
+- After the operator merges/closes PR 103, verify Render Preview removal within 30 minutes.
+- Confirm no review is pending, explicitly authorize deletion of only `pr-103`
+  (`br-late-math-b9vj2lql`), and verify its removal. Keep the project and `preview-empty`.
+- Confirm operator-session secret and clipboard cleanup, then add the final cleanup result
+  to issue #95 before closing it. No merge, remote deletion or issue closure has been performed
+  as part of this evidence update.
 
 References: [Neon pooling](https://neon.com/docs/connect/connection-pooling),
 [Render Service Previews](https://render.com/docs/service-previews), ADR-0023 and ADR-0026.
