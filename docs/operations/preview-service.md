@@ -79,4 +79,8 @@ Record provider incidents without copying tokens, environment values, personal d
 
 ## Future extension
 
+For the M3 database-backed manual pilot, follow [the isolated Neon Preview runbook](neon-preview-pilot.md).
+Its PR-specific database binding supersedes the application-only restriction for that verified
+pilot only; base Development and other Previews must not inherit its database credentials.
+
 M2 will define disposable PostgreSQL data and deterministic synthetic fixtures. Until that boundary exists, the Service Preview must remain application-only. Moving to full Render Preview Environments requires a separate cost and workspace-plan decision.
