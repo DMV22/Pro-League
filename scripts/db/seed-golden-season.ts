@@ -3,6 +3,8 @@ import pg from 'pg'
 import { seedGoldenSeason } from './golden-season-fixture'
 import { assertGoldenSeasonTarget, type GoldenSeasonTarget } from './golden-season-target'
 import { loadProjectEnv } from './load-env'
+import { assertPreviewSqlIdentity, readPreviewOperationsTarget } from './preview-preflight'
+import { assertMigrationLedger, readMigrationManifest, type LedgerRow } from './migration-ledger'
 
 loadProjectEnv()
 
@@ -36,7 +38,21 @@ const database = assertGoldenSeasonTarget(
   previewPullRequest,
 )
 
-const pool = new pg.Pool({ connectionString: url, max: 1, connectionTimeoutMillis: 5_000 })
+if (target === 'preview' && reset)
+  throw new Error('Preview reset is disabled; use a new isolated branch instead')
+const preview =
+  target === 'preview'
+    ? await readPreviewOperationsTarget(
+        'SEED_DATABASE_URL',
+        option('confirm-db'),
+        previewPullRequest,
+      )
+    : undefined
+const pool = new pg.Pool({
+  connectionString: preview?.connectionString ?? url,
+  max: 1,
+  connectionTimeoutMillis: preview ? 15_000 : 5_000,
+})
 const client = await pool.connect()
 const tableName = (name: string) => {
   if (!/^[a-z_][a-z_0-9]*$/.test(name)) throw new Error('Unexpected app table name')
@@ -44,10 +60,23 @@ const tableName = (name: string) => {
 }
 
 try {
+  if (preview) {
+    await assertPreviewSqlIdentity(client, preview.identity)
+  }
   await client.query('begin isolation level serializable')
   await client.query("set local lock_timeout = '5s'")
   await client.query("set local statement_timeout = '120s'")
   await client.query('select pg_advisory_xact_lock(749203, 75)')
+  if (preview) {
+    const lock = await client.query<{ locked: boolean }>(
+      'SELECT pg_try_advisory_xact_lock(749203, 95) AS locked',
+    )
+    if (!lock.rows[0]?.locked) throw new Error('Another Preview preparation command is running')
+    const ledger = await client.query<LedgerRow>(
+      'SELECT hash, created_at::text FROM app.__drizzle_migrations ORDER BY created_at, id',
+    )
+    assertMigrationLedger(readMigrationManifest(), ledger.rows)
+  }
 
   const identity = await client.query<{ database: string; schema: string | null }>(
     "select current_database() as database, to_regnamespace('app')::text as schema",
@@ -89,6 +118,10 @@ try {
   process.stdout.write(`Golden Season installed in disposable ${target} database ${database}.\n`)
 } catch (error) {
   await client.query('rollback')
+  if (preview)
+    throw new Error(
+      'Preview seed failed; inspect sanitized diagnostics and do not reset the database',
+    )
   throw error
 } finally {
   client.release()
