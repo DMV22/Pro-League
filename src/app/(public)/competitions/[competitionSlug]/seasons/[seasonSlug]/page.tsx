@@ -11,6 +11,7 @@ import { hasPublicDatabaseConfiguration } from '@/server/queries/public-navigati
 import { uiText } from '@/shared/i18n/ui-text'
 import { getRuntimePublicProjection } from '@/server/queries/public-projection-view'
 import { ProjectionStatus } from '@/components/public/projection-status'
+import { isRenderPreview } from '@/server/db/preview-target'
 
 type Props = PageProps<'/competitions/[competitionSlug]/seasons/[seasonSlug]'>
 type ContentProps = Pick<Props, 'params'>
@@ -30,6 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { robots: { index: false } }
 
   return {
+    ...(isRenderPreview() ? { robots: { index: false, follow: false } } : {}),
     title: `${result.payload.season.name} — ${result.payload.competition.name}`,
     description: `${uiText.public.seasonsTitle}: ${result.payload.season.name}. ${result.payload.competition.name}.`,
   }

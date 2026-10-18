@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -7,6 +8,12 @@ import { hasPublicDatabaseConfiguration } from '@/server/queries/public-navigati
 import { uiText } from '@/shared/i18n/ui-text'
 import { getRuntimePublicProjection } from '@/server/queries/public-projection-view'
 import { ProjectionStatus } from '@/components/public/projection-status'
+import { isRenderPreview } from '@/server/db/preview-target'
+
+export async function generateMetadata(): Promise<Metadata> {
+  await connection()
+  return isRenderPreview() ? { robots: { index: false, follow: false } } : {}
+}
 
 async function CompetitionList() {
   await connection()
