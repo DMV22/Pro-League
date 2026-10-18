@@ -45,6 +45,8 @@
     "db:compare-schema": "tsx scripts/db/compare-schema-dumps.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "tsx scripts/db/guard-local-migration.ts && drizzle-kit migrate",
+    "db:migrate:preview": "tsx scripts/db/migrate-preview.ts",
+    "db:prepare-preview-reader": "tsx scripts/db/prepare-preview-reader.ts",
     "baseline": "pnpm quality && pnpm types && pnpm unit && pnpm build && pnpm e2e:chromium && pnpm accessibility && pnpm lighthouse"
   },
   "dependencies": {

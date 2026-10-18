@@ -16,7 +16,8 @@ import { createPublicProjectionSnapshotQuery } from '../../src/server/queries/pu
 import { goldenId } from './golden-season-fixture'
 import { assertGoldenSeasonTarget, type GoldenSeasonTarget } from './golden-season-target'
 import { loadProjectEnv } from './load-env'
-import { readMigrationManifest } from './migration-ledger'
+import { assertMigrationLedger, readMigrationManifest, type LedgerRow } from './migration-ledger'
+import { assertPreviewSqlIdentity, readPreviewOperationsTarget } from './preview-preflight'
 
 loadProjectEnv()
 const option = (name: string) =>
@@ -34,9 +35,17 @@ const database = assertGoldenSeasonTarget(
   option('confirm-db'),
   option('preview-pr') ? Number(option('preview-pr')) : undefined,
 )
+const preview =
+  target === 'preview'
+    ? await readPreviewOperationsTarget(
+        'SEED_DATABASE_URL',
+        option('confirm-db'),
+        Number(option('preview-pr')),
+      )
+    : undefined
 const client = new pg.Client({
-  connectionString: process.env.SEED_DATABASE_URL,
-  connectionTimeoutMillis: 5_000,
+  connectionString: preview?.connectionString ?? process.env.SEED_DATABASE_URL,
+  connectionTimeoutMillis: preview ? 15_000 : 5_000,
 })
 await client.connect()
 const expectedRelationshipDigest =
@@ -51,9 +60,13 @@ async function count(sql: string, parameters: string[], expected: number): Promi
 }
 
 try {
+  if (preview) await assertPreviewSqlIdentity(client, preview.identity)
   const identity = await client.query<{ database: string }>('select current_database() as database')
   assert.equal(identity.rows[0]?.database, database)
-  await count('from app.__drizzle_migrations', [], readMigrationManifest().length)
+  const ledger = await client.query<LedgerRow>(
+    'SELECT hash, created_at::text FROM app.__drizzle_migrations ORDER BY created_at, id',
+  )
+  assertMigrationLedger(readMigrationManifest(), ledger.rows)
   await count('from app.competitions', [], 1)
   await count('from app.seasons', [], 1)
   await count('from app.season_entries', [], 4)
