@@ -1,3 +1,5 @@
+import { assertPreviewRuntime } from './preview-target'
+
 export type DatabaseUrlName = 'DATABASE_URL' | 'MIGRATION_DATABASE_URL'
 
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]'])
@@ -29,6 +31,7 @@ export function readDatabaseUrl(
     throw new Error(`${name} must include a PostgreSQL host, user, and database`)
   }
 
+  if (name === 'DATABASE_URL') assertPreviewRuntime(value, environment)
   return value
 }
 

@@ -13,9 +13,10 @@ const globalForDatabase = globalThis as typeof globalThis & {
 export const RUNTIME_POOL_MAX = 5
 
 export function getRuntimePool(): pg.Pool {
+  const connectionString = readDatabaseUrl('DATABASE_URL')
   if (!globalForDatabase.proLeagueRuntimePool) {
     const pool = new pg.Pool({
-      connectionString: readDatabaseUrl('DATABASE_URL'),
+      connectionString,
       max: RUNTIME_POOL_MAX,
       connectionTimeoutMillis: 5_000,
       idleTimeoutMillis: 30_000,
