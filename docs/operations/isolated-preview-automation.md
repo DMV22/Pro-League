@@ -118,6 +118,13 @@ not its isolation guarantees. Local implementation is not proof of cloud accepta
    the controller requires the approved workflow path at `refs/heads/main` and
    fails closed otherwise. Do not loosen this check to make a failed pilot pass.
 6. Apply `render.yaml`'s **Manual** Preview generation to the Development service.
+   Also apply its build command, which installs both locked dependency sets before
+   `pnpm build`: `pnpm install --frozen-lockfile && npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund && pnpm build`.
+   Next.js type-checks the controller sources too, so a root-only install fails
+   even when the application compiles. CI already installs both dependency sets.
+   Verify the actual build command on existing PR Previews separately; a local
+   Blueprint edit does not update an already-created service. Keep this command
+   aligned with the Blueprint when applying an override to an existing Preview.
    The controller, not each developer, owns the `render-preview` label. The
    initial unbound Preview may start before binding, but is never readiness
    evidence. Do not add database credentials to the base service to fix it.

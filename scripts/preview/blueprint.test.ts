@@ -1,10 +1,26 @@
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
+import { parseDocument } from 'yaml'
 import { validateBlueprint } from './blueprint'
 
 it('accepts the repository Blueprint without API credentials or a Render workspace', () => {
   const source = readFileSync(new URL('../../render.yaml', import.meta.url), 'utf8')
   expect(() => validateBlueprint(source)).not.toThrow()
+})
+
+it('installs locked controller dependencies before the application build on Render', () => {
+  const source = readFileSync(new URL('../../render.yaml', import.meta.url), 'utf8')
+  const blueprint = parseDocument(source).toJS()
+  const service = blueprint.services.find(
+    (entry: { name: string }) => entry.name === 'pro-league-development',
+  )
+
+  expect(service.buildCommand.split(' && ')).toEqual([
+    'pnpm install --frozen-lockfile',
+    'npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund',
+    'pnpm build',
+  ])
+  expect(service.buildFilter.paths).toContain('scripts/preview/**')
 })
 
 it.each([

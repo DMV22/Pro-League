@@ -9,7 +9,7 @@ services:
     plan: free
     branch: develop
     autoDeployTrigger: checksPass
-    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    buildCommand: pnpm install --frozen-lockfile && npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund && pnpm build
     startCommand: pnpm start
     healthCheckPath: /
     previews:
@@ -27,6 +27,7 @@ services:
         - public/**
         - src/**
         - scripts/db/**
+        - scripts/preview/**
         - drizzle/**
       ignoredPaths:
         - .agents/**
