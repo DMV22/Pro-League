@@ -1,0 +1,143 @@
+name: Isolated Preview
+
+on:
+  pull_request_target:
+    branches: [develop]
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        type: string
+        required: true
+      operation:
+        description: Reconcile or explicitly recreate an already cleaned Preview
+        type: choice
+        options: [run, recreate]
+        default: run
+
+# Never cancel an in-flight mutation. Every write rechecks the current PR revision.
+concurrency:
+  group: isolated-preview-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: false
+  queue: max
+
+permissions: {}
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: preview-control
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      statuses: write
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      pr: ${{ steps.plan.outputs.pr }}
+      sha: ${{ steps.plan.outputs.sha }}
+      manifest: ${{ steps.plan.outputs.manifest }}
+      review: ${{ steps.plan.outputs.review }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+      - run: npm ci --prefix control/scripts/preview --ignore-scripts --no-audit --no-fund
+      - id: plan
+        name: Inspect PR metadata and bounded migration files; never execute PR code
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_STATE_KEY: ${{ secrets.PREVIEW_STATE_KEY }}
+        run: node --import ./control/scripts/preview/node_modules/tsx/dist/loader.mjs control/scripts/preview/cli.ts inspect "$PR_NUMBER"
+
+  approve-migrations:
+    needs: inspect
+    if: needs.inspect.outputs.review == 'true'
+    name: Approve PR ${{ needs.inspect.outputs.pr }} SQL ${{ needs.inspect.outputs.manifest }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Required reviewer must be configured before bootstrap; never used for ordinary updates.
+    environment: preview-migrations
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+      - run: npm ci --prefix control/scripts/preview --ignore-scripts --no-audit --no-fund
+      - name: Revalidate exact approved SHA and manifest after reviewer approval
+        env:
+          PR_NUMBER: ${{ needs.inspect.outputs.pr }}
+          EXPECTED_PR_SHA: ${{ needs.inspect.outputs.sha }}
+          APPROVED_MIGRATION_HASH: ${{ needs.inspect.outputs.manifest }}
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_STATE_KEY: ${{ secrets.PREVIEW_STATE_KEY }}
+        run: node --import ./control/scripts/preview/node_modules/tsx/dist/loader.mjs control/scripts/preview/cli.ts review "$PR_NUMBER"
+
+  reconcile:
+    needs: [inspect, approve-migrations]
+    if: >-
+      always() && needs.inspect.result == 'success' && needs.inspect.outputs.action != 'skip' &&
+      ((needs.inspect.outputs.review == 'true' && needs.approve-migrations.result == 'success') ||
+       (needs.inspect.outputs.review == 'false' && needs.approve-migrations.result == 'skipped'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: preview-control
+    # Cross-PR mutation/cleanup serialization; both resulting Previews may remain live.
+    concurrency:
+      group: isolated-preview-mutations
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+      - run: npm ci --prefix control/scripts/preview --ignore-scripts --no-audit --no-fund
+      - if: needs.inspect.outputs.action == 'prepare'
+        run: node control/scripts/preview/node_modules/@playwright/test/cli.js install --with-deps chromium
+      - name: Reconcile verified PR resources and run credential-free smoke and Lighthouse
+        env:
+          PR_NUMBER: ${{ needs.inspect.outputs.pr }}
+          OPERATION: ${{ inputs.operation || 'run' }}
+          EXPECTED_PR_SHA: ${{ needs.inspect.outputs.sha }}
+          APPROVED_MIGRATION_HASH: ${{ needs.inspect.outputs.manifest }}
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_STATE_KEY: ${{ secrets.PREVIEW_STATE_KEY }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_BASE_SERVICE_ID: ${{ vars.RENDER_BASE_SERVICE_ID }}
+          RENDER_OWNER_ID: ${{ vars.RENDER_OWNER_ID }}
+        run: node --import ./control/scripts/preview/node_modules/tsx/dist/loader.mjs control/scripts/preview/cli.ts "$OPERATION" "$PR_NUMBER"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && needs.inspect.outputs.action == 'prepare'
+        with:
+          name: isolated-preview-lighthouse-${{ needs.inspect.outputs.pr }}-${{ github.run_id }}
+          path: control/scripts/preview/artifacts/lighthouse
+          if-no-files-found: ignore
+          retention-days: 7
