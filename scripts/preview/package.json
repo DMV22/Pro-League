@@ -1,0 +1,21 @@
+{
+  "name": "proleague-preview-control",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "scripts": {
+    "blueprint:validate": "tsx check-blueprint.ts"
+  },
+  "dependencies": {
+    "@lhci/cli": "0.15.1",
+    "@playwright/test": "1.63.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.0",
+    "tsx": "4.23.15",
+    "yaml": "2.9.1"
+  }
+}
