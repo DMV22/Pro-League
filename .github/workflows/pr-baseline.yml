@@ -63,6 +63,8 @@ jobs:
           runtime: node@22.14.0
           cache: true
           require-lockfile: true
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - run: pnpm types
 
   unit:
@@ -77,6 +79,8 @@ jobs:
           runtime: node@22.14.0
           cache: true
           require-lockfile: true
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - run: pnpm unit
 
   postgres-integration:
@@ -106,6 +110,9 @@ jobs:
       - name: Start isolated PostgreSQL 18
         if: needs.changes.outputs.runtime == 'true'
         run: docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml up -d --wait
+      - name: Install locked standalone Preview dependencies
+        if: needs.changes.outputs.runtime == 'true'
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - name: Apply reviewed migrations and run integration suite
         if: needs.changes.outputs.runtime == 'true'
         run: |
@@ -226,6 +233,8 @@ jobs:
           runtime: node@22.14.0
           cache: true
           require-lockfile: true
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - run: pnpm build
 
   e2e-chromium:
@@ -242,6 +251,8 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - run: pnpm build
       - run: pnpm e2e:chromium
       - name: Upload Playwright failure evidence
@@ -269,6 +280,8 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - run: pnpm build
       - run: pnpm accessibility
       - name: Upload accessibility failure evidence
@@ -295,6 +308,8 @@ jobs:
           runtime: node@22.14.0
           cache: true
           require-lockfile: true
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - run: pnpm build
       - run: pnpm lighthouse
       - name: Upload Lighthouse evidence
