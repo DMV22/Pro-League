@@ -1,0 +1,3 @@
+ProLeague isolated Preview capacity diagnostic.
+This third runtime pilot must be blocked while two verified Previews exist.
+No credentials or personal data. Close this temporary PR without merging.
