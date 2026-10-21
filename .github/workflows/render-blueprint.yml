@@ -6,11 +6,13 @@ on:
     paths:
       - render.yaml
       - .github/workflows/render-blueprint.yml
+      - scripts/preview/**
   push:
     branches: [develop, main]
     paths:
       - render.yaml
       - .github/workflows/render-blueprint.yml
+      - scripts/preview/**
   workflow_dispatch:
 
 concurrency:
@@ -24,23 +26,16 @@ jobs:
   validate:
     name: render-blueprint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - name: Install Render CLI
-        shell: bash
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/render-oss/cli/main/bin/install.sh | sh
-          echo "$HOME/.render/bin" >> "$GITHUB_PATH"
-      - name: Validate Render Blueprint
-        shell: bash
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_WORKSPACE_ID: ${{ vars.RENDER_WORKSPACE_ID }}
-        run: |
-          if [[ -z "$RENDER_API_KEY" || -z "$RENDER_WORKSPACE_ID" ]]; then
-            echo "::error::Set RENDER_API_KEY as a GitHub Actions secret and RENDER_WORKSPACE_ID as a repository variable."
-            exit 1
-          fi
-
-          render --version
-          render blueprints validate render.yaml --workspace "$RENDER_WORKSPACE_ID"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+      # PR code and the Blueprint are untrusted. No Environment or provider secrets here.
+      - name: Install locked validation dependencies without lifecycle scripts
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
+      - name: Validate Render Blueprint structure without API credentials
+        run: npm --prefix scripts/preview run blueprint:validate
