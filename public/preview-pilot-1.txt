@@ -1,3 +1,4 @@
 ProLeague isolated Preview lifecycle pilot 1.
+Revision: 2. Verify resource reuse and deployment of the updated PR SHA.
 Synthetic diagnostic marker only. No credentials or personal data.
 This temporary pull request must be closed without merging after acceptance.
