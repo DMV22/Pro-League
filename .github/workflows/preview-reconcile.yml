@@ -1,0 +1,48 @@
+name: Preview cleanup reconciliation
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: preview-cleanup-reconciliation
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview-control
+    concurrency:
+      group: isolated-preview-mutations
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+      - run: npm ci --prefix control/scripts/preview --ignore-scripts --no-audit --no-fund
+      - name: Reconcile known resources; alert instead of deleting unknown targets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_STATE_KEY: ${{ secrets.PREVIEW_STATE_KEY }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_BASE_SERVICE_ID: ${{ vars.RENDER_BASE_SERVICE_ID }}
+          RENDER_OWNER_ID: ${{ vars.RENDER_OWNER_ID }}
+        run: node --import ./control/scripts/preview/node_modules/tsx/dist/loader.mjs control/scripts/preview/cli.ts sweep
