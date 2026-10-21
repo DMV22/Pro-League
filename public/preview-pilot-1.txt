@@ -1,0 +1,3 @@
+ProLeague isolated Preview lifecycle pilot 1.
+Synthetic diagnostic marker only. No credentials or personal data.
+This temporary pull request must be closed without merging after acceptance.
