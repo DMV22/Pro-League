@@ -1,0 +1,55 @@
+# Preview controller bootstrap into main
+
+Part of [issue #96](https://github.com/DMV22/Pro-League/issues/96).
+Controller source: reviewed `develop` commit
+`2db72014129040e46e43a99ef8efdfaa7b2f1b0d` (PR #104).
+
+## Scope
+
+This branch starts from `main`, not `develop`. It adds only the standalone
+controller, its workflows and missing shared Preview database guards. The Golden
+fixture, migration ledger and Lighthouse configuration already match the reviewed
+source. The existing main baseline keeps its jobs and gains dependency installation
+only where types, tests or application builds consume controller sources.
+
+No application pages, schema migrations, root dependency upgrades or Render
+service changes are part of this bootstrap. Existing controller tests remain on
+develop; the bootstrap copies runtime files without their `*.test.ts` files.
+Blueprint validation is credential-free.
+
+## Before merging this bootstrap PR into main
+
+1. Create `preview-control` and `preview-migrations` GitHub Environments. Restrict
+   each to exactly the branch `main`, with no tag or wildcard policies. Require a
+   reviewer for `preview-migrations`. Do this before merging scheduled workflows;
+   do not rely on GitHub's automatic creation of an unprotected Environment.
+2. Generate and privately retain one 32-byte random `PREVIEW_STATE_KEY`, encoded
+   as 64 hex characters. Set the same value in both Environments. Never place it
+   in a PR, screenshot, command output, repository file or Render runtime.
+3. Put new Preview-only `NEON_API_KEY` and `RENDER_API_KEY` secrets exclusively in
+   `preview-control`. Set Environment variables `RENDER_BASE_SERVICE_ID` and
+   `RENDER_OWNER_ID` from the verified Development service and workspace.
+4. Check deployment integrations and filters for `main`. This is not authorization
+   to deploy Production or promote develop's application into main.
+5. Require successful bootstrap CI and review the trusted workflow code. Do not
+   grant keys to untrusted PR code or relax trust checks to get a green run.
+
+## After merge, before the first runtime pilot
+
+1. Verify credential-free Blueprint validation is present on both main and develop.
+   Check consumers of the old repository-level `RENDER_API_KEY`, then remove that
+   secret and revoke its old provider token. Do not reuse it as the new key.
+2. Apply the reviewed develop Blueprint's Manual Preview generation and updated
+   build command to the Development service. Audit inherited variables/groups:
+   no provider/owner credentials or shared per-PR database binding may be inherited.
+3. Confirm Actions permits the reviewed controller and its protected Environments.
+   Dispatch from `main` only; do not run the cloud CLI locally with provider keys.
+4. Open a separately reviewed runtime pilot PR targeting develop. Verify baseline
+   CI, migration review when requested, isolated database provisioning, exact-SHA
+   deployment, HTML/browser checks and strict Lighthouse acceptance.
+5. Complete the remaining two-PR, reuse, exclusions, capacity, failure recovery and
+   cleanup evidence listed in `docs/operations/isolated-preview-automation.md` on
+   develop before closing #96. A Live Render deployment alone is not acceptance.
+
+Environment/secret setup, token revocation, merge and live provider acceptance are
+operator actions. Preparing this branch does not perform or prove those actions.
