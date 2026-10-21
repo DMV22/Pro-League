@@ -1,0 +1,3 @@
+ProLeague isolated Preview lifecycle pilot 2.
+Synthetic diagnostic marker only. This marker belongs to the second Preview.
+Close this temporary pull request without merging after acceptance.
