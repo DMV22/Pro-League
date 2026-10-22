@@ -1,20 +1,12 @@
-import { connection } from 'next/server'
-import type { ReactNode } from 'react'
-import { isRenderPreview } from '@/server/db/preview-target'
+import { isPreviewBuild } from '@/server/rendering/preview-build'
 import { uiText } from '@/shared/i18n/ui-text'
 
-export async function PublicPreviewContent({ children }: Readonly<{ children: ReactNode }>) {
-  await connection()
-  // Resolve the notice and its following content in the same Suspense boundary.
-  // A separately streamed notice would push an already painted page down.
+export function PreviewNotice() {
+  if (!isPreviewBuild()) return null
+  // Render in the static shell: no late insertion and no request-time gate around the page.
   return (
-    <>
-      {isRenderPreview() && (
-        <aside className="public-projection-status" aria-label={uiText.public.previewLabel}>
-          <p>{uiText.public.previewNotice}</p>
-        </aside>
-      )}
-      {children}
-    </>
+    <aside className="public-projection-status" aria-label={uiText.public.previewLabel}>
+      <p>{uiText.public.previewNotice}</p>
+    </aside>
   )
 }

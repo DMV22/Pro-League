@@ -47,6 +47,37 @@ not its isolation guarantees. Local implementation is not proof of cloud accepta
   canceled halfway through a mutation. Current PR state/SHA is rechecked between
   stages; a changed revision cannot be marked ready by an obsolete run.
 
+## Preview build contract
+
+Each Preview must have its own application build. `next.config.ts` derives the
+non-secret `PROLEAGUE_PREVIEW_BUILD` presentation flag from the existing Render
+Preview indicators; operators must not configure this internal flag manually.
+The notice and public hero are rendered in the static shell, without a
+request-time Suspense boundary around the page. Data sections still stream
+independently. Database isolation and noindex continue to use runtime checks,
+not the presentation flag.
+
+Server startup rejects a normal build running as Preview, or a Preview build
+running outside Preview. Rebuild for the target environment; do not disable the
+check or promote the same `.next` artifact between these environment types.
+
+For the local isolated guard fixture, build in Preview mode first (no cloud
+credentials or database connection are needed):
+
+```powershell
+$env:IS_PULL_REQUEST = 'true'
+pnpm build
+$env:PUBLIC_PREVIEW_GUARD_FIXTURE = '1'
+pnpm exec playwright test tests/e2e/public-preview-guard.spec.ts --project=chromium --project=chromium-mobile
+Remove-Item Env:PUBLIC_PREVIEW_GUARD_FIXTURE
+Remove-Item Env:IS_PULL_REQUEST
+pnpm build
+```
+
+The final command restores a normal local build. These checks establish the
+rendering and isolation contract, not a cloud LCP improvement; verify that
+separately using equivalent three-run Lighthouse measurements and saved traces.
+
 ## Activation prerequisites — operator actions, not performed by local code
 
 1. Review this implementation on its feature branch. Do **not** merge all of

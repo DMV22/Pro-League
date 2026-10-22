@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:net'
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 
 test.describe('Preview isolation before database access', () => {
@@ -8,7 +9,37 @@ test.describe('Preview isolation before database access', () => {
     process.env.PUBLIC_PREVIEW_GUARD_FIXTURE !== '1',
     'Explicit isolated server fixture only',
   )
+  test('refuses to start a build in the opposite environment', async () => {
+    const artifact = JSON.parse(readFileSync('.next/required-server-files.json', 'utf8'))
+    const previewBuild = artifact.config.env.PROLEAGUE_PREVIEW_BUILD
+    expect(['true', 'false']).toContain(previewBuild)
+    const child = spawn(
+      process.execPath,
+      ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '0'],
+      {
+        env: {
+          ...process.env,
+          IS_PULL_REQUEST: String(previewBuild !== 'true'),
+          RENDER_EXTERNAL_HOSTNAME: '',
+          RENDER_EXTERNAL_URL: '',
+        },
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
+    let diagnostic = ''
+    child.stdout?.on('data', (chunk: Buffer) => (diagnostic += chunk.toString()))
+    child.stderr?.on('data', (chunk: Buffer) => (diagnostic += chunk.toString()))
+    try {
+      await expect.poll(() => child.exitCode, { timeout: 20_000 }).not.toBeNull()
+      expect(child.exitCode).not.toBe(0)
+      expect(diagnostic).toContain('Preview build/runtime mismatch')
+    } finally {
+      await stop(child)
+    }
+  })
   test('missing and mismatched bindings serve no data and make zero database connections', async ({
+    browser,
     page,
     request,
   }) => {
@@ -66,6 +97,17 @@ test.describe('Preview isolation before database access', () => {
               { timeout: 30_000 },
             )
             .toBe(200)
+          const staticContext = await browser.newContext({ javaScriptEnabled: false })
+          try {
+            const staticPage = await staticContext.newPage()
+            await staticPage.goto(origin)
+            await expect(staticPage.locator('#portal-title')).toBeVisible()
+            await expect(
+              staticPage.getByRole('complementary', { name: 'Тестове середовище' }),
+            ).toBeVisible()
+          } finally {
+            await staticContext.close()
+          }
           for (const route of [
             '/',
             '/competitions/golden-cup',
