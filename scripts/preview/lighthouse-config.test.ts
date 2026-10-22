@@ -1,8 +1,10 @@
 import { createRequire } from 'node:module'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const require = createRequire(import.meta.url)
 const configPath = require.resolve('../../lighthouserc.cjs')
+
+beforeEach(() => vi.stubEnv('LHCI_PREVIEW_PERFORMANCE', ''))
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -41,3 +43,59 @@ it.each(['http://127.0.0.1:3200', 'https://pro-league-development.onrender.com']
     expect(configFor(origin).collect.settings.saveAssets).toBeUndefined()
   },
 )
+
+it('only downgrades Performance/LCP/TBT for explicitly opted-in cloud Previews', () => {
+  vi.stubEnv('LHCI_PREVIEW_PERFORMANCE', 'diagnostic')
+  const ci = configFor('https://pro-league-development-pr-106.onrender.com')
+  for (const matrix of ci.assert.assertMatrix) {
+    expect(matrix.assertions['categories:performance'][0]).toBe('warn')
+    expect(matrix.assertions['categories:accessibility']).toEqual([
+      'error',
+      { aggregationMethod: 'median', minScore: 1 },
+    ])
+    expect(matrix.assertions['categories:best-practices'][0]).toBe('error')
+    expect(matrix.assertions['cumulative-layout-shift']).toEqual([
+      'error',
+      { aggregationMethod: 'median', maxNumericValue: 0.1 },
+    ])
+  }
+  const home = ci.assert.assertMatrix[0].assertions
+  expect(home['largest-contentful-paint']).toEqual([
+    'warn',
+    { aggregationMethod: 'median', maxNumericValue: 2500 },
+  ])
+  expect(home['total-blocking-time']).toEqual([
+    'warn',
+    { aggregationMethod: 'median', maxNumericValue: 200 },
+  ])
+  expect(ci.collect.settings.saveAssets).toBe(true)
+  expect(ci.collect.numberOfRuns).toBe(3)
+})
+
+it.each([
+  '',
+  'http://127.0.0.1:3200',
+  'https://pro-league-development.onrender.com',
+  'https://example.com',
+  'https://pro-league-development-pr-106.onrender.com.example.com',
+])('keeps baseline and non-Preview budgets strict despite opt-in (%s)', (origin) => {
+  vi.stubEnv('LHCI_PREVIEW_PERFORMANCE', 'diagnostic')
+  const ci = configFor(origin)
+  for (const matrix of ci.assert.assertMatrix) {
+    expect(matrix.assertions['categories:performance'][0]).toBe('error')
+    expect(matrix.assertions['categories:seo']?.[0]).toBe(
+      matrix === ci.assert.assertMatrix[0] ? 'error' : undefined,
+    )
+  }
+  const home = ci.assert.assertMatrix[0].assertions
+  expect(home['largest-contentful-paint'][0]).toBe('error')
+  expect(home['total-blocking-time'][0]).toBe('error')
+})
+
+it('does not accept an unknown diagnostic mode', () => {
+  vi.stubEnv('LHCI_PREVIEW_PERFORMANCE', 'true')
+  expect(
+    configFor('https://pro-league-development-pr-106.onrender.com').assert.assertMatrix[0]
+      .assertions['largest-contentful-paint'][0],
+  ).toBe('error')
+})

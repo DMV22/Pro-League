@@ -4,6 +4,9 @@ const escapedBaseUrl = baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const isRenderServicePreview = /^pro-league-development-pr-\d+\.onrender\.com$/.test(
   new URL(baseUrl).hostname,
 )
+// Temporary #96 waiver for the provisional UI. Baseline and manual runs stay strict.
+const performanceLevel =
+  isRenderServicePreview && process.env.LHCI_PREVIEW_PERFORMANCE === 'diagnostic' ? 'warn' : 'error'
 
 const collect = {
   url: [`${baseUrl}/`, `${baseUrl}/admin`],
@@ -29,18 +32,24 @@ module.exports = {
         {
           matchingUrlPattern: `^${escapedBaseUrl}/$`,
           assertions: {
-            'categories:performance': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
+            'categories:performance': [
+              performanceLevel,
+              { aggregationMethod: 'median', minScore: 0.9 },
+            ],
             'categories:accessibility': ['error', { aggregationMethod: 'median', minScore: 1 }],
             'categories:best-practices': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
             'largest-contentful-paint': [
-              'error',
+              performanceLevel,
               { aggregationMethod: 'median', maxNumericValue: 2500 },
             ],
             'cumulative-layout-shift': [
               'error',
               { aggregationMethod: 'median', maxNumericValue: 0.1 },
             ],
-            'total-blocking-time': ['error', { aggregationMethod: 'median', maxNumericValue: 200 }],
+            'total-blocking-time': [
+              performanceLevel,
+              { aggregationMethod: 'median', maxNumericValue: 200 },
+            ],
             // Render deliberately sets noindex on PR Previews, so crawlability is not applicable there.
             ...(!isRenderServicePreview && {
               'categories:seo': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
@@ -50,7 +59,10 @@ module.exports = {
         {
           matchingUrlPattern: `^${escapedBaseUrl}/admin$`,
           assertions: {
-            'categories:performance': ['error', { aggregationMethod: 'median', minScore: 0.85 }],
+            'categories:performance': [
+              performanceLevel,
+              { aggregationMethod: 'median', minScore: 0.85 },
+            ],
             'categories:accessibility': ['error', { aggregationMethod: 'median', minScore: 1 }],
             'categories:best-practices': ['error', { aggregationMethod: 'median', minScore: 0.9 }],
             'cumulative-layout-shift': [

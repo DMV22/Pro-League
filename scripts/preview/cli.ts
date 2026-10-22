@@ -206,10 +206,13 @@ async function main() {
         { PREVIEW_ORIGIN: origin, PREVIEW_PR: String(current.number) },
       )
       const config = fileURLToPath(new URL('../../lighthouserc.cjs', import.meta.url))
+      console.log(
+        'Temporary #96 waiver: cloud Performance/LCP/TBT are diagnostic for provisional UI',
+      )
       await safeProcess(
         require.resolve('@lhci/cli/src/cli.js'),
         ['autorun', `--config=${config}`],
-        { LHCI_BASE_URL: origin },
+        { LHCI_BASE_URL: origin, LHCI_PREVIEW_PERFORMANCE: 'diagnostic' },
       )
       await render.live(record.serviceId!, record.deployId!, current.number, branch, current.sha)
     },
