@@ -5,6 +5,11 @@ import { stateMarker, type StateCodec } from '../state'
 import { createHash } from 'node:crypto'
 
 const repository = '/repos/DMV22/Pro-League'
+export class AllocationBlockedError extends Error {
+  constructor() {
+    super('Resolve cleanup alerts before allocating new Previews')
+  }
+}
 type PrResponse = {
   number: number
   state: 'open' | 'closed'
@@ -161,17 +166,21 @@ export function createGitHub(client: JsonClient, codec: StateCodec) {
       if (!issues.some((issue) => issue.body?.startsWith(marker)))
         await client.post(`${repository}/issues`, {
           title: `Preview cleanup requires operator action: PR #${pr.number}`,
-          body: `${marker}\nCleanup of PR #${pr.number} is incomplete. Inspect its signed ownership record and the Actions run. Verify the PR remains closed and resource identities match before removal. Do not delete unknown resources or the empty parent. New allocations must remain blocked until the alert is resolved.`,
+          body: `${marker}\nCleanup of PR #${pr.number} is incomplete. Inspect its signed ownership record and the Actions run. Verify the PR is closed or its signed reservation has expired, and resource identities match before removal. Do not delete unknown resources or the empty parent. New allocations must remain blocked until the alert is resolved.`,
         })
     },
-    async hasCleanupAlert() {
-      return (
-        await pages<{ body: string }>(`/issues?state=open&creator=github-actions%5Bbot%5D`)
-      ).some(
-        (issue) =>
-          issue.body?.startsWith('<!-- preview-cleanup-failure:') ||
-          issue.body?.startsWith('<!-- preview-inventory-failure -->'),
+    async assertAllocationAllowed() {
+      const issues = await pages<{ body: string }>(
+        `/issues?state=open&creator=github-actions%5Bbot%5D`,
       )
+      if (
+        issues.some(
+          (issue) =>
+            issue.body?.startsWith('<!-- preview-cleanup-failure:') ||
+            issue.body?.startsWith('<!-- preview-inventory-failure -->'),
+        )
+      )
+        throw new AllocationBlockedError()
     },
     async alertInventory() {
       const marker = '<!-- preview-inventory-failure -->'

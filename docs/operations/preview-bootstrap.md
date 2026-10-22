@@ -1,6 +1,8 @@
 # Preview controller bootstrap into main
 
 Part of [issue #96](https://github.com/DMV22/Pro-League/issues/96).
+The temporary expiry/alert drill is documented in
+[Preview acceptance drill](preview-acceptance-drill.md).
 Controller source: reviewed `develop` commit
 `2db72014129040e46e43a99ef8efdfaa7b2f1b0d` (PR #104).
 
