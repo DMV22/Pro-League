@@ -53,3 +53,22 @@ Blueprint validation is credential-free.
 
 Environment/secret setup, token revocation, merge and live provider acceptance are
 operator actions. Preparing this branch does not perform or prove those actions.
+
+## Lighthouse trace diagnostics
+
+Render PR Preview Lighthouse collection retains Chrome `*.trace.json` and
+`*.devtoolslog.json` assets from the same three measured navigations per URL.
+They are written in the controller working directory (`scripts/preview`), not
+the HTML/JSON report output directory. The lifecycle workflow uploads both
+locations in the existing seven-day Lighthouse artifact, including on assertion
+failure. Match assets to reports by URL and timestamp; load a trace into Chrome
+DevTools Performance to inspect the actual event timeline. Simulated Lighthouse
+metrics and observed trace timestamps are different evidence and must not be
+combined as one timeline. Traces can include public HTML, URLs and network
+metadata: keep this diagnostic limited to synthetic, unauthenticated Previews.
+The Lighthouse subprocess still receives no provider credentials. No extra
+navigation, throttling change or budget relaxation is introduced.
+
+Controller configuration and workflow changes take effect only after review and
+promotion to trusted `main`; a feature-branch edit does not change a running
+controller. Do not execute untrusted PR controller code to obtain diagnostics.

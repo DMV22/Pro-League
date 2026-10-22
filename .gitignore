@@ -16,6 +16,10 @@ out
 dist
 dist-ssr
 artifacts
+/*.trace.json
+/*.devtoolslog.json
+/scripts/preview/*.trace.json
+/scripts/preview/*.devtoolslog.json
 playwright-report
 test-results
 *.local
