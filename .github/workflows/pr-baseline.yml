@@ -173,11 +173,6 @@ jobs:
           DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_public_cache_ci
           PUBLIC_CACHE_BROWSER_FIXTURE: '1'
         run: pnpm exec playwright test tests/e2e/public-cache.spec.ts --project=chromium --project=chromium-mobile --workers=1
-      - name: Verify Preview isolation before database access
-        if: needs.changes.outputs.runtime == 'true'
-        env:
-          PUBLIC_PREVIEW_GUARD_FIXTURE: '1'
-        run: pnpm exec playwright test tests/e2e/public-preview-guard.spec.ts --project=chromium --project=chromium-mobile --workers=1
       - name: Verify empty public navigation
         if: needs.changes.outputs.runtime == 'true'
         env:
@@ -190,6 +185,16 @@ jobs:
           DATABASE_URL: postgresql://unreachable:unreachable@127.0.0.1:59999/proleague_unreachable_ci
           PUBLIC_NAVIGATION_ERROR_FIXTURE: '1'
         run: pnpm exec playwright test tests/e2e/public-navigation-error.spec.ts --project=chromium
+      - name: Build isolated Preview guard fixture
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          IS_PULL_REQUEST: 'true'
+        run: pnpm build
+      - name: Verify Preview isolation before database access
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          PUBLIC_PREVIEW_GUARD_FIXTURE: '1'
+        run: pnpm exec playwright test tests/e2e/public-preview-guard.spec.ts --project=chromium --project=chromium-mobile --workers=1
       - name: Stop disposable PostgreSQL
         if: always() && needs.changes.outputs.runtime == 'true'
         run: docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml down -v
