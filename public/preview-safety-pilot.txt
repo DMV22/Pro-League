@@ -1,0 +1,3 @@
+ProLeague isolated Preview safety acceptance pilot for issue #96.
+Revision A: exact-SHA SQL approval with a read-only SELECT probe.
+Temporary synthetic environment only. Close without merging after acceptance.
