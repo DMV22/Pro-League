@@ -10,6 +10,8 @@ const collect = {
   numberOfRuns: 3,
   settings: {
     chromeFlags: '--headless=new --no-sandbox',
+    // Retain the actual measured navigations, not a second diagnostic run.
+    ...(isRenderServicePreview && { saveAssets: true }),
   },
 }
 
