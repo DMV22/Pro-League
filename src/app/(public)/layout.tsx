@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense, type ReactNode } from 'react'
 
 import { uiText } from '@/shared/i18n/ui-text'
-import { PreviewNotice } from '@/components/public/preview-notice'
+import { PublicPreviewContent } from '@/components/public/preview-notice'
 
 type PublicLayoutProps = Readonly<{
   children: ReactNode
@@ -26,9 +26,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
       </header>
       <main id="main-content" className="site-main" tabIndex={-1}>
         <Suspense fallback={null}>
-          <PreviewNotice />
+          <PublicPreviewContent>{children}</PublicPreviewContent>
         </Suspense>
-        {children}
       </main>
       <footer className="site-footer">{uiText.public.footer}</footer>
     </div>
