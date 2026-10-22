@@ -248,7 +248,7 @@ try {
   const ledger = await pool.query<{ count: string }>(
     'SELECT count(*) FROM app.__drizzle_migrations',
   )
-  assert.equal(Number(ledger.rows[0]?.count), 3, 'Apply all three reviewed migrations first')
+  assert.equal(Number(ledger.rows[0]?.count), 4, 'Apply all four reviewed pilot migrations first')
   const data = await pool.query<{ total: string }>(
     `SELECT (SELECT count(*) FROM app.competitions) +
             (SELECT count(*) FROM app.scheduled_jobs) +

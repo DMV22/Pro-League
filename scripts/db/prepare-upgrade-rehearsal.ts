@@ -20,6 +20,7 @@ assert.deepEqual(
     '0000_initial_proleague_schema',
     '0001_current_participant_uniqueness',
     '0002_public_projection_revisions',
+    '0003_preview_approval_probe',
   ],
   'Upgrade rehearsal needs an explicit update for a new release migration',
 )
@@ -40,7 +41,8 @@ try {
     `CREATE TABLE app.__drizzle_migrations
       (id serial PRIMARY KEY, hash text NOT NULL, created_at bigint)`,
   )
-  for (const previous of manifest.slice(0, -1)) {
+  // Keep rehearsing the public-cache upgrade; the final SELECT is a temporary pilot probe.
+  for (const previous of manifest.slice(0, 2)) {
     for (const statement of previous.statements) {
       if (statement.trim()) await client.query(statement)
     }
