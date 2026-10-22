@@ -121,7 +121,7 @@ jobs:
       - run: npm ci --prefix control/scripts/preview --ignore-scripts --no-audit --no-fund
       - if: needs.inspect.outputs.action == 'prepare'
         run: node control/scripts/preview/node_modules/@playwright/test/cli.js install --with-deps chromium
-      - name: Reconcile verified PR resources and run credential-free smoke and Lighthouse
+      - name: Reconcile verified PR resources, smoke and Lighthouse (Performance diagnostic)
         env:
           PR_NUMBER: ${{ needs.inspect.outputs.pr }}
           OPERATION: ${{ inputs.operation || 'run' }}

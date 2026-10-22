@@ -46,7 +46,8 @@ Blueprint validation is credential-free.
    Dispatch from `main` only; do not run the cloud CLI locally with provider keys.
 4. Open a separately reviewed runtime pilot PR targeting develop. Verify baseline
    CI, migration review when requested, isolated database provisioning, exact-SHA
-   deployment, HTML/browser checks and strict Lighthouse acceptance.
+   deployment, HTML/browser checks and Lighthouse acceptance under the temporary
+   Performance exception below.
 5. Complete the remaining two-PR, reuse, exclusions, capacity, failure recovery and
    cleanup evidence listed in `docs/operations/isolated-preview-automation.md` on
    develop before closing #96. A Live Render deployment alone is not acceptance.
@@ -67,7 +68,37 @@ metrics and observed trace timestamps are different evidence and must not be
 combined as one timeline. Traces can include public HTML, URLs and network
 metadata: keep this diagnostic limited to synthetic, unauthenticated Previews.
 The Lighthouse subprocess still receives no provider credentials. No extra
-navigation, throttling change or budget relaxation is introduced.
+navigation or throttling change is introduced. Numeric budgets remain unchanged;
+the temporary exception below changes only three assertions' severity.
+
+## Temporary cloud Performance exception — issue #96
+
+Approved on 2026-10-22 while the public UI is provisional and will be replaced.
+The trusted controller explicitly passes `LHCI_PREVIEW_PERFORMANCE=diagnostic`
+to its credential-free Lighthouse subprocess. Only an exact
+`pro-league-development-pr-<number>.onrender.com` host honors it. Performance
+scores (home and Admin), home LCP and home TBT become warnings, not readiness
+blockers. All three runs, original numeric thresholds, reports and traces remain.
+Warnings are diagnostic evidence, not proof that Performance acceptance passed.
+
+Accessibility, best practices, CLS, successful Lighthouse collection, smoke,
+noindex, exact deployment SHA, reviewed migrations, Golden verification,
+database/reader isolation and every trust/cleanup gate remain blocking. There
+is no blanket `continue-on-error`, swallowed process error or skipped audit.
+Baseline CI, local runs, non-Preview hosts and manual runs without explicit
+opt-in retain their strict budgets. The controller logs the active exception.
+
+For #96, successful lifecycle evidence may therefore include recorded cloud
+Performance warnings; it must still satisfy all other acceptance requirements.
+Do not close #96 until concurrency, reuse, exclusions, capacity and cleanup
+evidence are complete. This exception supersedes the strict-cloud-Performance
+requirement in the develop runbook; it does not waive the remaining gates.
+
+Restore strict cloud Performance before accepting the replacement UI: remove the
+controller opt-in, verify config regression tests, and record successful strict
+three-run cloud measurements. Restoration is part of final-UI acceptance, not
+an indefinite waiver. Controller changes require a reviewed PR into `main` and
+an operator merge; do not activate them from an untrusted feature branch.
 
 Controller configuration and workflow changes take effect only after review and
 promotion to trusted `main`; a feature-branch edit does not change a running
