@@ -1,3 +1,3 @@
--- Temporary issue #96 acceptance probe, revision A. Do not merge this pilot.
+-- Temporary issue #96 acceptance probe, revision B. Do not merge this pilot.
 -- Read-only statement: no application schema or data changes.
-SELECT 1 AS preview_approval_probe;
+SELECT 2 AS preview_approval_probe;
