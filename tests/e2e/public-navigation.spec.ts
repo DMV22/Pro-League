@@ -1,11 +1,17 @@
 import { expect, test } from '@playwright/test'
+import { assertPublicSeason } from '../support/public-season-assertions'
 
 test.skip(
-  !process.env.PUBLIC_NAVIGATION_TEST_FIXTURE,
-  'Requires a dedicated seeded browser database',
+  !process.env.PUBLIC_NAVIGATION_TEST_FIXTURE && process.env.PUBLIC_PREVIEW_SMOKE !== '1',
+  'Requires a dedicated seeded browser database or an explicitly selected isolated Preview',
 )
 
-test('visitor navigates from published Competition to Season with server-rendered content', async ({
+test.beforeEach(async ({ baseURL }) => {
+  if (process.env.PUBLIC_PREVIEW_SMOKE === '1')
+    expect(baseURL).toMatch(/^https:\/\/pro-league-development-pr-\d+\.onrender\.com$/)
+})
+
+test('ACC-PUBLIC-001: visitor follows Competition to Season Entries, Results and Standings', async ({
   page,
   request,
 }) => {
@@ -27,6 +33,7 @@ test('visitor navigates from published Competition to Season with server-rendere
   await expect(page).toHaveURL('/competitions/golden-cup/seasons/2026-golden')
   await expect(page.getByRole('heading', { level: 1, name: 'Golden Season 2026' })).toBeVisible()
   await expect(page).toHaveTitle('Golden Season 2026 — Вигаданий кубок громад | ProLeague')
+  await assertPublicSeason(page)
 })
 
 test('missing public Competition and Season do not expose entity metadata', async ({ page }) => {

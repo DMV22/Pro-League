@@ -74,6 +74,61 @@ not in shared Golden data, the empty Neon parent or Production. Browser acceptan
 against Preview is read-only and does not receive provider credentials. Existing
 #96 safety pilots need not be recreated merely to repeat their completed evidence.
 
+## Implemented first slice: public journey and privacy controls
+
+`tests/e2e/public-navigation.spec.ts` now traverses the full read-only Golden
+journey, including current technical Result and provisional Standings. It reuses
+the same Season assertions as `public-season-content.spec.ts`. For a read-only
+Preview run, set `PUBLIC_PREVIEW_SMOKE=1` and `PLAYWRIGHT_BASE_URL` to the exact
+selected `https://pro-league-development-pr-N.onrender.com` origin. This does not
+allocate a Preview or prove its deployment SHA; collect controller evidence too.
+
+`public-published-only.spec.ts` uses a separate, explicitly confirmed loopback
+database named `proleague_m3_acceptance_local` or `proleague_m3_acceptance_ci`.
+Create an empty database and apply the reviewed migrations with its dedicated
+`MIGRATION_DATABASE_URL` first. Do not point these commands at shared Golden data.
+Set `M3_ACCEPTANCE_DATABASE_URL` privately to that same dedicated URL, then run:
+
+```powershell
+pnpm exec tsx scripts/db/prepare-m3-acceptance.ts --confirm-db=proleague_m3_acceptance_local
+$env:DATABASE_URL = $env:M3_ACCEPTANCE_DATABASE_URL
+$env:M3_ACCEPTANCE_CONFIRM_DB = 'proleague_m3_acceptance_local'
+$env:PUBLIC_M3_ACCEPTANCE_FIXTURE = '1'
+$env:PUBLIC_NAVIGATION_TEST_FIXTURE = '1'
+pnpm build
+pnpm exec playwright test tests/e2e/public-navigation.spec.ts tests/e2e/public-season-content.spec.ts tests/e2e/public-published-only.spec.ts --project=chromium --project=chromium-mobile --workers=1
+```
+
+Use a fresh console or restore the previous environment afterwards. Do not set an
+external `PLAYWRIGHT_BASE_URL` for privacy tests: they require a freshly started
+local production server, not a reused server from a different database. The seed
+refuses populated databases; there is intentionally no reset mode. It creates
+Golden data plus private Competition/Season/Team controls, a public child of a
+private parent and a noncurrent schedule revision, without changing the shared
+fixture implementation or existing databases.
+
+Before negative checks, tests verify the controls actually exist in PostgreSQL.
+Complete response HTML (including serialized scripts), rendered metadata and
+private-route not-found behavior are checked. Existing Draft Article, private
+Match, synthetic exact birth-date and superseded Result controls are included;
+this does not claim acceptance of the future editorial or Player-profile modules.
+The baseline's real-PostgreSQL job prepares and executes the dedicated privacy
+suite explicitly, rather than relying on its default fixture-based skip.
+
+Cross-browser milestone execution, actual cloud journey, retained milestone
+reports, performance evidence and the final go/no-go remain separate pending work.
+
+### Local implementation check — 2026-10-24
+
+The first-slice working tree passed TypeScript, production build and 22 browser
+checks on Chromium desktop/mobile against PostgreSQL 18.6 in the dedicated
+`proleague_m3_acceptance_local` database. The complete unit suite passed all 143
+tests across 28 files, including 10 new target-guard cases. Changed-file lint,
+formatting and `git diff --check` also passed.
+A repeat seed was rejected as expected and left the Competition count unchanged.
+These are local implementation results, not immutable candidate/CI/cloud evidence;
+the final checklist above deliberately remains pending.
+
 ## Evidence and closure
 
 For each result retain the immutable SHA, UTC timestamp, environment, browser/tool

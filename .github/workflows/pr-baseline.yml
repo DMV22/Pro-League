@@ -159,6 +159,24 @@ jobs:
           pnpm exec playwright install --with-deps chromium
           pnpm build
           pnpm exec playwright test tests/e2e/public-navigation.spec.ts tests/e2e/public-season-content.spec.ts tests/accessibility/public-navigation.a11y.spec.ts --project=chromium --project=chromium-mobile
+      - name: Prepare dedicated M3 privacy browser database
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+          M3_ACCEPTANCE_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+        run: |
+          docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml exec -T postgres \
+            psql -U proleague -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE proleague_m3_acceptance_ci"
+          pnpm db:migrate:local
+          pnpm exec tsx scripts/db/prepare-m3-acceptance.ts --confirm-db=proleague_m3_acceptance_ci
+      - name: Verify M3 Published-only HTML and metadata
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+          M3_ACCEPTANCE_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+          M3_ACCEPTANCE_CONFIRM_DB: proleague_m3_acceptance_ci
+          PUBLIC_M3_ACCEPTANCE_FIXTURE: '1'
+        run: pnpm exec playwright test tests/e2e/public-published-only.spec.ts --project=chromium --project=chromium-mobile --workers=1
       - name: Prepare isolated cache browser database
         if: needs.changes.outputs.runtime == 'true'
         env:
