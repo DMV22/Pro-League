@@ -13,7 +13,7 @@ on:
       operation:
         description: Reconcile or explicitly recreate an already cleaned Preview
         type: choice
-        options: [run, recreate, recreate-short-ttl, test-cleanup-failure, test-allocation-block]
+        options: [run, recreate]
         default: run
 
 # Never cancel an in-flight mutation. Every write rechecks the current PR revision.
@@ -54,7 +54,6 @@ jobs:
         name: Inspect PR metadata and bounded migration files; never execute PR code
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-          PREVIEW_OPERATION: ${{ inputs.operation || 'run' }}
           GH_TOKEN: ${{ github.token }}
           PREVIEW_STATE_KEY: ${{ secrets.PREVIEW_STATE_KEY }}
         run: node --import ./control/scripts/preview/node_modules/tsx/dist/loader.mjs control/scripts/preview/cli.ts inspect "$PR_NUMBER"
@@ -120,7 +119,7 @@ jobs:
         with:
           node-version: 22.14.0
       - run: npm ci --prefix control/scripts/preview --ignore-scripts --no-audit --no-fund
-      - if: needs.inspect.outputs.action == 'prepare' && (inputs.operation == '' || inputs.operation == 'run' || inputs.operation == 'recreate' || inputs.operation == 'recreate-short-ttl')
+      - if: needs.inspect.outputs.action == 'prepare'
         run: node control/scripts/preview/node_modules/@playwright/test/cli.js install --with-deps chromium
       - name: Reconcile verified PR resources, smoke and Lighthouse (Performance diagnostic)
         env:
@@ -130,8 +129,8 @@ jobs:
           APPROVED_MIGRATION_HASH: ${{ needs.inspect.outputs.manifest }}
           GH_TOKEN: ${{ github.token }}
           PREVIEW_STATE_KEY: ${{ secrets.PREVIEW_STATE_KEY }}
-          NEON_API_KEY: ${{ inputs.operation != 'test-allocation-block' && secrets.NEON_API_KEY || '' }}
-          RENDER_API_KEY: ${{ inputs.operation != 'test-allocation-block' && secrets.RENDER_API_KEY || '' }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_BASE_SERVICE_ID: ${{ vars.RENDER_BASE_SERVICE_ID }}
           RENDER_OWNER_ID: ${{ vars.RENDER_OWNER_ID }}
         run: node --import ./control/scripts/preview/node_modules/tsx/dist/loader.mjs control/scripts/preview/cli.ts "$OPERATION" "$PR_NUMBER"
