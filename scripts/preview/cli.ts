@@ -4,11 +4,16 @@ import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { createJsonClient } from './http'
 import { createStateCodec } from './state'
-import { AllocationBlockedError, createGitHub } from './providers/github'
-import { acceptanceMode, recreationExpiry, withAcceptanceFailure } from './acceptance'
+import { createGitHub } from './providers/github'
 import { createNeon } from './providers/neon'
 import { createRender } from './providers/render'
-import { assertCurrent, cleanupPreview, reconcilePreview, type PreviewSystems } from './reconcile'
+import {
+  assertCurrent,
+  cleanupPreview,
+  createReservation,
+  reconcilePreview,
+  type PreviewSystems,
+} from './reconcile'
 import { planPreview } from './policy'
 import { bundleDigest, withMigrationBundle } from './migrations'
 import { prepareDatabase, readerUrl, verifyReader, withAllocationLease } from './database'
@@ -68,18 +73,7 @@ async function main() {
     )
   )
     throw new Error('Preview control runs only from the trusted main workflow')
-  if (
-    ![
-      'inspect',
-      'review',
-      'run',
-      'sweep',
-      'recreate',
-      'recreate-short-ttl',
-      'test-cleanup-failure',
-      'test-allocation-block',
-    ].includes(command)
-  )
+  if (!['inspect', 'review', 'run', 'sweep', 'recreate'].includes(command))
     throw new Error('Unknown Preview operation')
   const codec = createStateCodec(secret('PREVIEW_STATE_KEY'))
   const github = createGitHub(createJsonClient('https://api.github.com', secret('GH_TOKEN')), codec)
@@ -103,21 +97,7 @@ async function main() {
       github.status(pr, 'failure', 'Preview controller failed; inspect the trusted Actions run')
   if (pr && process.env.EXPECTED_PR_SHA && pr.sha !== process.env.EXPECTED_PR_SHA)
     throw new Error('PR changed')
-  const requested = command === 'inspect' ? (process.env.PREVIEW_OPERATION ?? 'run') : command
-  const acceptance =
-    pr &&
-    ['recreate-short-ttl', 'test-cleanup-failure', 'test-allocation-block'].includes(requested)
-      ? acceptanceMode(requested, pr, await github.authorise(pr), process.env, new Date())
-      : undefined
-  if (acceptance === 'test-allocation-block') reportFailure = undefined
   if (pr && command === 'inspect') {
-    if (acceptance === 'test-cleanup-failure' || acceptance === 'test-allocation-block') {
-      output('action', 'acceptance')
-      output('sha', pr.sha)
-      output('pr', String(pr.number))
-      output('review', 'false')
-      return // These modes cannot migrate, allocate, bind or run PR code.
-    }
     const plan = planPreview(pr, await github.files(pr))
     output(
       'action',
@@ -150,17 +130,6 @@ async function main() {
     await assertCurrent(pr, github)
     console.info(`Approved exact migration bundle for PR #${pr.number}, SHA ${pr.sha}`)
     return
-  }
-  if (acceptance === 'test-allocation-block') {
-    // Read-only probe of the exact admission guard used below; no provider credentials needed.
-    try {
-      await github.assertAllocationAllowed()
-    } catch (error) {
-      if (!(error instanceof AllocationBlockedError)) throw error
-      console.info('Acceptance pilot #112: allocation blocked by an open cleanup/inventory alert')
-      return
-    }
-    throw new Error('Acceptance expected an open cleanup alert')
   }
   const neon = createNeon(
     createJsonClient('https://console.neon.tech/api/v2', secret('NEON_API_KEY')),
@@ -304,18 +273,7 @@ async function main() {
     return
   }
   if (!pr) throw new Error('PR missing')
-  if (acceptance === 'test-cleanup-failure') {
-    const record = await github.record(pr.number)
-    if (!record?.identity || !record.serviceId || record.phase === 'cleaned')
-      throw new Error('Acceptance cleanup needs existing signed resources')
-    await cleanupPreview(
-      pr,
-      withAcceptanceFailure(acceptance, systems),
-      pr.state === 'closed' ? 'closed' : 'expired',
-    )
-    return
-  }
-  if (command === 'recreate' || acceptance === 'recreate-short-ttl') {
+  if (command === 'recreate') {
     if (process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || pr.state !== 'open')
       throw new Error('Recreation needs explicit operator dispatch')
     const record = await github.record(pr.number)
@@ -324,12 +282,7 @@ async function main() {
     // Do not replace the cleaned ownership record while a cleanup alert is unresolved.
     await github.assertAllocationAllowed()
     await assertCurrent(pr, github)
-    await github.save({
-      pr: pr.number,
-      sha: pr.sha,
-      phase: 'reserved',
-      expiresAt: recreationExpiry(new Date(), acceptance),
-    })
+    await github.save(createReservation(pr, new Date()))
   }
   await reconcilePreview(pr, systems)
 }

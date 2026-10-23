@@ -1,8 +1,8 @@
 # Preview controller bootstrap into main
 
 Part of [issue #96](https://github.com/DMV22/Pro-League/issues/96).
-The temporary expiry/alert drill is documented in
-[Preview acceptance drill](preview-acceptance-drill.md).
+Completed expiry/alert/recreation evidence is recorded in
+[the issue #96 acceptance report](https://github.com/DMV22/Pro-League/issues/96#issuecomment-6374813431).
 Controller source: reviewed `develop` commit
 `2db72014129040e46e43a99ef8efdfaa7b2f1b0d` (PR #104).
 
@@ -17,7 +17,8 @@ only where types, tests or application builds consume controller sources.
 No application pages, schema migrations, root dependency upgrades or Render
 service changes are part of this bootstrap. Existing controller tests remain on
 develop; the bootstrap copies runtime files without their `*.test.ts` files.
-Blueprint validation is credential-free.
+Blueprint validation is credential-free. Permanent lifecycle/alert and workflow
+regression tests now also live on `main` after the temporary acceptance drill.
 
 ## Before merging this bootstrap PR into main
 
@@ -56,6 +57,30 @@ Blueprint validation is credential-free.
 
 Environment/secret setup, token revocation, merge and live provider acceptance are
 operator actions. Preparing this branch does not perform or prove those actions.
+
+## Normal expiry and recovery
+
+Initial reservations and explicit recreation use the same fixed seven-day TTL,
+rounded to seconds. Pushes/retries do not extend an existing reservation. A
+Preview that expires during preparation cannot be marked ready.
+
+Closing/merging cleans the PR resources. Daily reconciliation (03:23 UTC, subject
+to GitHub scheduler delays) also cleans expired open PRs; Neon expiry is an
+independent safeguard. An expired/cleaned Preview is not implicitly recreated.
+After confirmed cleanup, dispatch `Isolated Preview` from trusted `main` with
+`operation: recreate`. This requires an open PR, successful CI, applicable exact
+SQL approval, available capacity and no unresolved cleanup/inventory alerts.
+
+Cleanup failure creates one deduplicated bot alert. Inspect the signed record,
+current closed/expired state and exact provider identities; retry normal
+reconciliation. Keep the alert open until provider absence is confirmed, then
+resolve it manually. Never edit signed state, reset a database or delete the
+empty parent/base service to recover a Preview. New allocations remain blocked
+while cleanup/inventory alerts are open.
+
+Temporary short-TTL, cleanup-failure and read-only allocation-probe operations
+have been removed. The supported manual lifecycle choices are only `run` and
+`recreate`; there is no pilot allowlist, deadline or production fault injection.
 
 ## Lighthouse trace diagnostics
 
