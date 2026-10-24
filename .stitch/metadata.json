@@ -1,10 +1,11 @@
 {
   "projectId": "9855422714832969954",
   "title": "Pro League — Футбол наших громад",
-  "status": "desktop-direction-approved",
+  "status": "responsive-design-approved",
   "approvedAt": "2026-10-25",
   "metadata": "homepage/metadata.json",
   "designMd": "homepage/DESIGN.md",
   "brief": "../docs/research/proleague-homepage-design-brief.md",
-  "artDirection": "../docs/research/proleague-homepage-art-direction.md"
+  "artDirection": "../docs/research/proleague-homepage-art-direction.md",
+  "responsiveSpec": "../docs/research/proleague-homepage-responsive-states.md"
 }

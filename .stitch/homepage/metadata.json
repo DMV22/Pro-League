@@ -2,7 +2,7 @@
   "projectId": "9855422714832969954",
   "title": "Pro League — Футбол наших громад",
   "url": "https://stitch.withgoogle.com/projects/9855422714832969954",
-  "status": "desktop-direction-approved",
+  "status": "responsive-design-approved",
   "screens": [
     {
       "name": "projects/9855422714832969954/screens/2bd0f1c940964fb4b34a13e504c7cddb",
@@ -10,7 +10,41 @@
       "html": "projects/9855422714832969954/files/300fffcb79e94157bd3ef4be26cae5f4",
       "screenshot": "projects/9855422714832969954/files/998286c9df2a48dfa65d30ada5565a2f",
       "localHtml": "../designs/homepage.html",
-      "localScreenshot": "../designs/homepage.png"
+      "localScreenshot": "../designs/homepage.png",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/9855422714832969954/screens/6b58e614e0ba4df38d3ccd267304f7b9",
+      "title": "Головна Pro League — mobile",
+      "deviceType": "MOBILE",
+      "purpose": "homepage",
+      "html": "projects/9855422714832969954/files/9d3f8c6df6d0482aba5902d63051e7bf",
+      "screenshot": "projects/9855422714832969954/files/5ae5d44c23c2421da0df2afe9a1a737f",
+      "localHtml": "../designs/homepage-mobile.html",
+      "localScreenshot": "../designs/homepage-mobile.png",
+      "status": "owner-approved"
+    },
+    {
+      "name": "projects/9855422714832969954/screens/e1006b88a5b9480f808b61ff10e06610",
+      "title": "Головна Pro League — tablet",
+      "deviceType": "TABLET",
+      "purpose": "homepage",
+      "html": "projects/9855422714832969954/files/69c3a86e15cd44ed9a0f91994afbdcd3",
+      "screenshot": "projects/9855422714832969954/files/b5a772bd03174b719d1ceed3ece2a969",
+      "localHtml": "../designs/homepage-tablet.html",
+      "localScreenshot": "../designs/homepage-tablet.png",
+      "status": "owner-approved"
+    },
+    {
+      "name": "projects/9855422714832969954/screens/bad6bdfa93d24ff993440658be735d98",
+      "title": "Pro League — Стани компонентів",
+      "deviceType": "DESKTOP",
+      "purpose": "component-state-sheet",
+      "html": "projects/9855422714832969954/files/c49534f71ecf4dc5b18581064c2b38a2",
+      "screenshot": "projects/9855422714832969954/files/b780bc9991574d3d882f650a29313f8c",
+      "localHtml": "../designs/homepage-states.html",
+      "localScreenshot": "../designs/homepage-states.png",
+      "status": "owner-approved"
     }
   ],
   "designSystem": {
@@ -42,10 +76,14 @@
       ["3", "СК «Приозерськ»", "3", "1", "0", "2", "5-4", "3"],
       ["4", "ФК «Джерело»", "3", "0", "1", "2", "0-5", "1"]
     ],
-    "mobile": "not generated",
+    "mobile": "Static Chromium render checked at320/390 CSSpx: no page overflow,4correct table rows,5loaded images,2scheduled fixtures,menu44px high; checked visible p/button/a/td/th have no font<14px.",
     "functional": "not tested",
-    "firstViewport": "not measured at CSS viewport dimensions"
+    "firstViewport": "Screenshots captured at320x800,390x844,834x1112,1440x1000 CSSpx.",
+    "tablet": "Static Chromium render checked at834CSSpx:no page overflow,4correct table rows,5loaded images,menu46px high;checked visible p/button/a/td/th have no font<14px.",
+    "desktopKnownIssue": "57 visible p/button/a/td/th below14px at1440px; approved desktop composition unchanged, typography normalization remains.",
+    "states": "Screenshot and source checked: planned/finished/postponed/cancelled,loading/error/empty,table states,menu,buttons,photo fallback;not functional acceptance."
   },
-  "ownerApproval": "2026-10-25: Owner approved the visual direction; mobile, component states and implementation remain pending.",
-  "providerNamesNote": "Local canonical names are normalized; existing cloud project and asset names were not changed."
+  "ownerApproval": "2026-10-25: Owner approved the desktop direction, tablet/mobile designs and component state sheet. Implementation and remaining verification are not covered by design approval.",
+  "providerNamesNote": "Local canonical names are normalized; existing cloud project and asset names were not changed.",
+  "responsiveSpec": "../../docs/research/proleague-homepage-responsive-states.md"
 }
