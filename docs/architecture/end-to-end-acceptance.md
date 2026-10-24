@@ -184,6 +184,25 @@ Lighthouse CI runs against a Production build, never the development server. Rep
 - complex authenticated builders target at least 85 while retaining accessibility and layout-stability requirements;
 - after launch, real-user Core Web Vitals are evaluated at the 75th percentile, including INP at most 200 milliseconds.
 
+### Provisional M3 UI Performance exception — issue #97
+
+On 2026-10-24 the project owner approved option A for internal M3 acceptance:
+carry forward the already approved, narrowly scoped Performance exceptions while
+the public UI is provisional. See the scope, owner, risk, restoration gate and
+pending acceptance checklist in [the M3 exit gate](../operations/m3-public-walking-skeleton-exit-gate.md).
+
+Additional mobile Competition/Season Performance measurements remain diagnostic;
+the trusted controller's existing exact-Preview-host Performance/LCP/TBT warning
+policy also remains unchanged. Existing required strict baseline checks are not
+relaxed. Numeric budgets, collection failures, privacy, correctness, accessibility,
+CLS and other non-exempt gates remain blocking. A diagnostic warning is not a
+strict Performance pass and cannot be recorded as one.
+
+This is an internal milestone exception, not Production or federation launch
+approval. It expires before acceptance of the replacement UI; strict mobile and
+cloud Performance must be restored and evidenced then. It does not waive the
+read-only walking skeleton's remaining acceptance criteria.
+
 ### Representative load
 
 Before launch, an isolated rehearsal runs 15 minutes of steady load plus a bounded spike, covering 100 concurrent public requests and up to 10 Admin sessions. It measures cached public traffic, cache misses, Standings, schedule, media-rich Article delivery, and an Admin publication/result update during public reads. Evidence includes latency percentiles, error rate, PostgreSQL connections, cache behavior, and Render memory against the 512 MB envelope.
@@ -252,4 +271,3 @@ A functional failure is not hidden by retry. One retry is allowed only for class
 - sensitive security output, secrets, personal data, private files, and full logs: never published as CI artifacts.
 
 The Developer owns automated and technical evidence. The Technical Operator owns deployment, security, recovery, and operational evidence. The Admin or federation representative owns regulation, schedule, Standings, content, initial-data, and usability acceptance. One person may initially perform multiple roles, but each responsibility is still recorded separately.
-

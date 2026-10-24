@@ -25,6 +25,7 @@
     "test:run": "pnpm unit",
     "unit": "vitest run",
     "e2e:chromium": "playwright test tests/e2e --project=chromium --project=chromium-mobile",
+    "e2e:m3": "playwright test --config=playwright.m3.config.ts",
     "accessibility": "playwright test tests/accessibility --project=chromium",
     "lighthouse": "lhci autorun",
     "db:up": "docker compose --env-file .env.local -f compose.postgres.yaml up -d --wait",

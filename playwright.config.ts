@@ -28,7 +28,7 @@ export default defineConfig({
     : {
         command: 'pnpm start:test',
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: !process.env.CI && process.env.PUBLIC_M3_ACCEPTANCE_FIXTURE !== '1',
         timeout: 120_000,
       },
   projects: [

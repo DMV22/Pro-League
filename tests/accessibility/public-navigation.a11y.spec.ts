@@ -7,6 +7,7 @@ test.skip(
 )
 
 for (const route of [
+  { path: '/', heading: 'Змагання, які об’єднують громади' },
   { path: '/competitions/golden-cup', heading: 'Вигаданий кубок громад' },
   {
     path: '/competitions/golden-cup/seasons/2026-golden',
