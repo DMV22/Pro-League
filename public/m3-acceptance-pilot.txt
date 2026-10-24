@@ -1,0 +1,4 @@
+M3 internal acceptance pilot for issue #97. Do not merge this pilot PR.
+Application baseline: e90033445923ea3787acdc75b68deb3ab1524789 (develop).
+This static marker enables isolated Preview provisioning without changing application behavior.
+Synthetic data only; this is not Production or an Official launch.
