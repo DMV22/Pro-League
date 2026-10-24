@@ -129,6 +129,74 @@ A repeat seed was rejected as expected and left the Competition count unchanged.
 These are local implementation results, not immutable candidate/CI/cloud evidence;
 the final checklist above deliberately remains pending.
 
+## Cross-browser milestone gate
+
+`pnpm e2e:m3` uses the separate `playwright.m3.config.ts`; the ordinary PR
+configuration still runs its existing Chromium projects. Use the dedicated
+fixture and environment from the first-slice instructions, then install engines:
+
+```powershell
+pnpm exec playwright install chromium firefox webkit
+pnpm e2e:m3
+```
+
+The milestone selects only the public navigation, Season content, Published-only
+and public accessibility suites. Chromium desktop/mobile, Firefox and WebKit must
+each execute all 14 required cases (56 total), with zero retries and no `only`,
+expected failure, skip or fixme satisfying the gate. The evidence reporter also
+rejects filtered/missing projects or files and duplicate cases. When deliberately
+adding/removing scenarios, review the explicit case-count contract and its tests.
+
+`artifacts/m3-browser/` contains HTML/JSON reports, traces for every test, an
+`acceptance.json` summary with actual checkout SHA/dirty-worktree status and CI run
+link, and the actually launched browser/Node/Playwright versions. Dirty local
+runs are implementation diagnostics, not immutable candidate evidence. A passing
+browser gate is not cloud, Lighthouse, migration or full M3 acceptance.
+
+`.github/workflows/m3-acceptance.yml` prepares an isolated PostgreSQL 18.6 fixture,
+builds the app and runs this gate. It uses only disposable local database values
+and the existing Docker Hub pull credentials, not Neon/Render/state-key secrets.
+Its `e2e-cross-browser` job uploads synthetic evidence on success/failure with
+90-day retention and removes only its job-owned Compose resources afterwards.
+Path-filtered PR/push runs on `develop` cover changes to this acceptance suite;
+they are not a claim that every future application change receives the milestone
+run. Re-run against the final candidate. Manual dispatch requires the workflow
+to be present on GitHub's default branch; do not silently promote unrelated
+application/controller changes to `main` merely to enable that trigger.
+
+Automated axe now covers home, Competition and Season on every milestone engine.
+This does not replace manual keyboard smoke or screen-reader review. Browser
+engines/emulated viewports do not prove physical Safari/iPhone behavior.
+
+### Local cross-browser implementation check — 2026-10-24
+
+The complete matrix passed 56/56 cases, exactly 14 per profile, with zero retries
+or skips. The reporter independently recorded `passed` with no matrix failures.
+Versions: Node 22.14.0, Playwright 1.63.0, Chromium 153.0.8010.12, Firefox 155.0,
+WebKit 26.6. The same dedicated local PostgreSQL fixture was read, not reseeded.
+
+A deliberate one-case Chromium selection passed its test but the reporter made
+the CLI fail specifically for incomplete coverage. This negative control is not
+a failed functional journey. Before that control reached tests, two setup runs
+failed: duplicate inherited `webServer` entries and Node's JSON import-attribute
+requirement. Both were fixed; the single-server fix has a regression test. These
+startup failures are not counted as successful guard evidence or hidden by retries.
+
+Local reports/traces are under `artifacts/m3-browser/`. Their metadata correctly
+identifies parent SHA `a79d0b67d95f0e0a1cf62c4d008a2267aa42b368` with a dirty
+implementation worktree and no CI run URL. They therefore do not replace reviewed,
+immutable candidate or cloud evidence. No provider resources changed. The 90-day
+workflow upload is implemented but has not yet executed on GitHub.
+
+During the final verification, a two-worker unit run hit a five-second config
+import timeout and a separate forks-worker startup timeout. These are retained
+as failed local verification evidence, not passing assertions. No test was
+quarantined and no timeout or retry budget was changed. The sequential repeat
+`pnpm exec vitest run --maxWorkers=1` passed all 156 tests across 30 files.
+Changed-file formatting and `git diff --check` passed. Previously completed
+TypeScript, production-build and repository quality checks remain local evidence;
+no cloud acceptance or final milestone approval is implied.
+
 ## Evidence and closure
 
 For each result retain the immutable SHA, UTC timestamp, environment, browser/tool

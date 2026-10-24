@@ -1,0 +1,91 @@
+name: M3 acceptance
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - '.github/workflows/m3-acceptance.yml'
+      - 'playwright.m3.config.ts'
+      - 'scripts/testing/m3-*'
+      - 'scripts/db/*m3*'
+      - 'tests/e2e/public-navigation.spec.ts'
+      - 'tests/e2e/public-season-content.spec.ts'
+      - 'tests/e2e/public-published-only.spec.ts'
+      - 'tests/accessibility/public-navigation.a11y.spec.ts'
+      - 'tests/support/m3-*'
+      - 'tests/support/public-season-assertions.ts'
+  push:
+    branches: [develop]
+    paths:
+      - '.github/workflows/m3-acceptance.yml'
+      - 'playwright.m3.config.ts'
+      - 'scripts/testing/m3-*'
+      - 'scripts/db/*m3*'
+      - 'tests/e2e/public-navigation.spec.ts'
+      - 'tests/e2e/public-season-content.spec.ts'
+      - 'tests/e2e/public-published-only.spec.ts'
+      - 'tests/accessibility/public-navigation.a11y.spec.ts'
+      - 'tests/support/m3-*'
+      - 'tests/support/public-season-assertions.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m3-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-cross-browser:
+    name: e2e-cross-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI_POSTGRES_DB: proleague_m3_acceptance_ci
+      CI_POSTGRES_USER: proleague
+      CI_POSTGRES_PASSWORD: ci-only-postgres
+      CI_POSTGRES_PORT: 5435
+      MIGRATION_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+      DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+      M3_ACCEPTANCE_DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_m3_acceptance_ci
+      M3_ACCEPTANCE_CONFIRM_DB: proleague_m3_acceptance_ci
+      PUBLIC_M3_ACCEPTANCE_FIXTURE: '1'
+      PUBLIC_NAVIGATION_TEST_FIXTURE: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - name: Install locked standalone Preview dependencies
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
+      - name: Authenticate Docker image pull
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Start disposable PostgreSQL 18
+        run: docker compose -p proleague-ci-m3 -f compose.postgres.ci.yaml up -d --wait
+      - name: Prepare reviewed isolated fixture
+        run: |
+          pnpm db:migrate:local
+          pnpm exec tsx scripts/db/prepare-m3-acceptance.ts --confirm-db=proleague_m3_acceptance_ci
+      - name: Install browser engines and build production app
+        run: |
+          pnpm exec playwright install --with-deps chromium firefox webkit
+          pnpm build
+      - name: Run complete M3 browser matrix without retries
+        run: pnpm e2e:m3
+      - name: Retain synthetic milestone browser evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m3-browser-${{ github.sha }}-${{ github.run_id }}
+          path: artifacts/m3-browser
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Stop this job's disposable PostgreSQL
+        if: always()
+        run: docker compose -p proleague-ci-m3 -f compose.postgres.ci.yaml down -v
