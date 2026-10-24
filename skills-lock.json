@@ -7,11 +7,25 @@
       "skillPath": "skills/accessibility/SKILL.md",
       "computedHash": "88c64dead9bb55925c7b983f5fd95cfecf30bd8c076fd384cdb17019d1becd87"
     },
+    "design-md": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "ref": "0337446dadde6f8c94210444e2aa9d546126480f",
+      "skillPath": "plugins/stitch-utilities/skills/design-md/SKILL.md",
+      "computedHash": "d3a4c7d2f2715a33662c8b06ffc16035d01965a8b4ed81c2958fb22ae94760f8"
+    },
     "domain-modeling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
       "computedHash": "336547f3ff285e822fc70b69b170dc58bceef9c8ed5fad18de0046287d6be837"
+    },
+    "enhance-prompt": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "ref": "0337446dadde6f8c94210444e2aa9d546126480f",
+      "skillPath": "plugins/stitch-utilities/skills/enhance-prompt/SKILL.md",
+      "computedHash": "71cc23e9ec5fc6361e12453495fa8c683f6cf26f3efaf9b230b0f43e0a32cc96"
     },
     "grilling": {
       "source": "mattpocock/skills",
@@ -48,6 +62,20 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
       "computedHash": "a45163cba56f72f5f224c46557c047d51547147a29e383e5a769ec39eecd1188"
+    },
+    "stitch::generate-design": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "ref": "0337446dadde6f8c94210444e2aa9d546126480f",
+      "skillPath": "plugins/stitch-design/skills/generate-design/SKILL.md",
+      "computedHash": "c5cf0685e477166e16283b5c2ee08c5b5022f0712d2a5988fdb475a9de79ad40"
+    },
+    "stitch::manage-design-system": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "ref": "0337446dadde6f8c94210444e2aa9d546126480f",
+      "skillPath": "plugins/stitch-design/skills/manage-design-system/SKILL.md",
+      "computedHash": "e55ef1adf10175b9ce3915f0bc7208904805ff14ce954349365dc5aabaa8359b"
     },
     "tdd": {
       "source": "mattpocock/skills",

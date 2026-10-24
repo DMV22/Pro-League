@@ -1,0 +1,51 @@
+{
+  "projectId": "9855422714832969954",
+  "title": "Pro League — Футбол наших громад",
+  "url": "https://stitch.withgoogle.com/projects/9855422714832969954",
+  "status": "desktop-direction-approved",
+  "screens": [
+    {
+      "name": "projects/9855422714832969954/screens/2bd0f1c940964fb4b34a13e504c7cddb",
+      "title": "Головна сторінка Pro League",
+      "html": "projects/9855422714832969954/files/300fffcb79e94157bd3ef4be26cae5f4",
+      "screenshot": "projects/9855422714832969954/files/998286c9df2a48dfa65d30ada5565a2f",
+      "localHtml": "../designs/homepage.html",
+      "localScreenshot": "../designs/homepage.png"
+    }
+  ],
+  "designSystem": {
+    "assetId": "0440df42c2714d64bc5b16a73e3859ab",
+    "fontFamily": "GEIST",
+    "primaryColor": "#00E6C4",
+    "backgroundColor": "#061A17",
+    "approval": "Owner confirmed palette, Geist, geometry and photographic demo-content in chat.",
+    "importedFont": "GEIST",
+    "importedHero": "64/68px 800",
+    "importedLabels": "14/20px 600",
+    "displayName": "Pro League"
+  },
+  "imageProvenance": "Five image assets returned by Stitch; provider-hosted illustrative imagery, independent origin/license not verified. Visible kit/stand branding must be replaced or cleared before production.",
+  "paletteCheck": {
+    "textOnBackground": 16.67,
+    "mutedOnSurface": 8.7,
+    "buttonTextOnPrimary": 11.23,
+    "decorativeOutlineOnSurface": 1.79,
+    "note": "Decorative outline is not a sole input/focus boundary. Photo overlays and whole UI untested."
+  },
+  "verification": {
+    "images": 5,
+    "plannedFixtures": 2,
+    "noInventedVenuesOrTieBreaker": true,
+    "standingsRows": [
+      ["1", "ФК «Обрій»", "3", "2", "1", "0", "5-2", "7"],
+      ["2", "ФК «Єдність територіальних громад»", "3", "1", "2", "0", "3-2", "5"],
+      ["3", "СК «Приозерськ»", "3", "1", "0", "2", "5-4", "3"],
+      ["4", "ФК «Джерело»", "3", "0", "1", "2", "0-5", "1"]
+    ],
+    "mobile": "not generated",
+    "functional": "not tested",
+    "firstViewport": "not measured at CSS viewport dimensions"
+  },
+  "ownerApproval": "2026-10-25: Owner approved the visual direction; mobile, component states and implementation remain pending.",
+  "providerNamesNote": "Local canonical names are normalized; existing cloud project and asset names were not changed."
+}
