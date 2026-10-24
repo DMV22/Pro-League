@@ -1,7 +1,8 @@
 # M3 Public Walking Skeleton exit gate
 
-Status: technical final-candidate evidence, 90-day cloud retention and cleanup
-verified; document review and explicit internal owner go/no-go remain pending.
+Status: **GO — internal read-only M3 acceptance approved by the project owner on
+2026-10-24.** Final evidence review completed through merged PR #119; #97 and M3 /
+#37 are closed as completed. The scoped Performance restoration obligation remains.
 Issue: [#97](https://github.com/DMV22/Pro-League/issues/97), part of [M3 / #37](https://github.com/DMV22/Pro-League/issues/37).  
 Policy approval: project owner, 2026-10-24, option A in the implementation-plan discussion.
 
@@ -71,7 +72,7 @@ checklist and the final-candidate section describe the current verification stat
 | Cache/outage | Committed-source freshness, bounded warned warm fallback, cold/expired unavailability and no revival of hidden data | Final-candidate real-PostgreSQL + 2/2 dedicated browser checks passed; exact expiry uses injected clock |
 | Lighthouse | Production build; required strict baseline passes; additional route measurements/Preview exceptions reported separately | Strict baseline passed; cloud diagnostic reports/traces retained for 90 days and downloaded summary verified |
 | Preview lifecycle | Correct PR binding, exact deployed SHA, synthetic notice/noindex, automatic cleanup and verified provider absence | Pilot #117 controller passed, PR closed without merge, cleanup run passed and ownership record is cleaned |
-| Decision | No unresolved blocking failure; explicit internal acceptance and outstanding UI restoration obligations | Technical checks passed under the existing scoped exception; pending owner go/no-go and document review |
+| Decision | No unresolved blocking failure; explicit internal acceptance and outstanding UI restoration obligations | Owner GO on 2026-10-24 after PR #119 review/merge; #97 and #37 completed within the unchanged scoped exception |
 
 Run mutation/outage fixtures only in dedicated disposable local/CI databases,
 not in shared Golden data, the empty Neon parent or Production. Browser acceptance
@@ -343,10 +344,18 @@ provisional-UI Performance exception remains exactly scoped as above; restoring
 strict measurements before replacement-UI acceptance is an outstanding obligation,
 not an unrecorded waiver or a claimed Performance pass.
 
-Final owner go/no-go and review of this versioned evidence are still pending.
-Neither #97 nor M3 / #37 is closed by this document. Approval concerns only the
-read-only M3 walking skeleton; M4 Admin/Audit/idempotency/outbox work is not marked
-complete and no federation, Production or Official launch approval is implied.
+After review and merge of [PR #119](https://github.com/DMV22/Pro-League/pull/119),
+the owner explicitly approved **GO for internal read-only M3 acceptance** on
+2026-10-24 and authorized closure. The decision and evidence links are recorded in
+[#97](https://github.com/DMV22/Pro-League/issues/97). Its four acceptance criteria
+are checked and it is closed as completed. All seven native M3 child issues
+(#91–97) were verified closed before closing [#37](https://github.com/DMV22/Pro-League/issues/37).
+
+Approval concerns only the read-only M3 walking skeleton. M4
+Admin/Audit/idempotency/outbox work is not marked complete; the overall MVP release
+milestone remains open. No federation, Production or Official launch approval is
+implied. This sign-off records the existing provisional-UI Performance exception,
+not an extension of it or a strict Performance pass.
 
 ## Evidence and closure
 
