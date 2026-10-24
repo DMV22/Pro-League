@@ -82,6 +82,37 @@ Temporary short-TTL, cleanup-failure and read-only allocation-probe operations
 have been removed. The supported manual lifecycle choices are only `run` and
 `recreate`; there is no pilot allowlist, deadline or production fault injection.
 
+## Controller HTTP failure diagnostics
+
+The CLI emits a fixed diagnostic such as
+`stage=inspect-files; http=500`. Stage labels are allowlisted; the HTTP code comes
+only from a typed provider error and is validated as a number. `http=0` means no
+HTTP response was obtained (transport/timeout); `http=unknown` means no safe HTTP
+code is available, for example a validation or JSON parsing error. Neither value
+is a successful response. Raw error messages/stacks, URL/query strings, headers,
+upstream response bodies and credentials are not included. A secondary failure
+while publishing the failure status does not replace the original diagnostic.
+
+HTTP 500 on GET now uses the existing bounded read budget: at most three attempts,
+with pauses of one and two seconds and the existing 30-second request timeout.
+The change does not add HTTP 500 retries for POST/PATCH/PUT/DELETE, extend retry
+budgets, ignore failures, bypass complete PR-file verification or provision a
+Preview when metadata cannot be verified. Existing treatment of other status
+codes and mutations is unchanged. Persistent HTTP 500 still fails closed.
+
+For PR #120, the exact GitHub `/pulls/120/files` REST route returned HTTP 500 in
+direct read-only checks while the PR metadata and commit comparison succeeded.
+This is a provider metadata failure, not a failed application test. Do not replace
+the verified file inventory with an unchecked fallback merely to get a green run.
+
+After this fix is reviewed and merged into `main`, start a **new** trusted workflow
+run from current `main` (for a docs-only PR, `operation: run` should report the
+non-runtime exclusion after verified metadata). Re-running an old failed Actions
+attempt retains its recorded workflow/source revision, so it does not install the
+fix. Check the new run's actual checkout SHA and diagnostic. If GitHub continues
+returning HTTP 500, investigate the upstream route; extra commits or repeated
+workflow runs are not proof of recovery.
+
 ## Lighthouse trace diagnostics
 
 Render PR Preview Lighthouse collection retains Chrome `*.trace.json` and
