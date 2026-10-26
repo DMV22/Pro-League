@@ -1,5 +1,6 @@
 import type { PreviewIdentity } from '../../src/server/db/preview-target'
 import { planPreview, type PullRequest } from './policy'
+import { atPreviewStage, previewFailure } from './diagnostics'
 
 export type PreviewRecord = {
   pr: number
@@ -68,16 +69,16 @@ export async function reconcilePreview(pr: PullRequest, systems: PreviewSystems)
   await systems.save(record)
   try {
     await assertCurrent(pr, systems)
-    record.identity = await systems.database(pr, record)
-    await systems.save(record)
+    record.identity = await atPreviewStage('reconcile', () => systems.database(pr, record))
+    await atPreviewStage('record-save', () => systems.save(record))
     await assertCurrent(pr, systems)
-    await systems.prepare(pr, record)
+    await atPreviewStage('prepare', () => systems.prepare(pr, record))
     record.phase = 'prepared'
     await systems.save(record)
     await assertCurrent(pr, systems)
-    Object.assign(record, await systems.bind(pr, record))
+    Object.assign(record, await atPreviewStage('bind', () => systems.bind(pr, record)))
     await systems.save(record)
-    await systems.verify(pr, record)
+    await atPreviewStage('verify', () => systems.verify(pr, record))
     await assertCurrent(pr, systems)
     if (Date.parse(record.expiresAt) <= systems.now().getTime())
       throw new Error(
@@ -87,12 +88,13 @@ export async function reconcilePreview(pr: PullRequest, systems: PreviewSystems)
     await systems.save(record)
     await systems.status(pr, 'success', 'Isolated Preview verified for this SHA')
     return { kind: 'ready', record } as const
-  } catch {
+  } catch (error) {
     // Never echo provider errors, SQL, PR titles, tokens or connection strings.
-    await systems.status(pr, 'failure', 'Preview preparation failed; inspect sanitized run summary')
-    throw new Error(
-      'Preview preparation failed; resources retained for diagnosis, no reset performed',
-    )
+    const failure = previewFailure('reconcile', error)
+    await systems
+      .status(pr, 'failure', 'Preview preparation failed; inspect sanitized run summary')
+      .catch(() => undefined)
+    throw failure
   }
 }
 

@@ -8,6 +8,7 @@ import { verifyPreviewControlPlane } from '../../db/preview-preflight'
 import { absent, type JsonClient } from '../http'
 import type { PreviewRecord } from '../reconcile'
 import type { StateCodec } from '../state'
+import { atPreviewStage, PreviewFailure } from '../diagnostics'
 
 type Branch = {
   id: string
@@ -83,12 +84,14 @@ export function createNeon(client: JsonClient, codec: StateCodec) {
       result.branch.parent_id !== previewProject.parentBranchId ||
       result.branch.id === previewProject.parentBranchId ||
       result.branch.name !== `pr-${record.pr}` ||
-      !result.annotation ||
-      !codec.owns(result.annotation.value, record.pr, record.expiresAt) ||
-      Date.parse(result.branch.expires_at ?? '') !== Date.parse(record.expiresAt) ||
       (record.identity && record.identity.branchId !== result.branch.id)
     )
-      throw new Error('Neon ownership differs; never adopt or delete this branch')
+      throw new PreviewFailure('neon-ownership', 'branch-identity-mismatch')
+    if (!result.annotation) throw new PreviewFailure('neon-ownership', 'annotation-missing')
+    if (!codec.owns(result.annotation.value, record.pr, record.expiresAt))
+      throw new PreviewFailure('neon-ownership', 'annotation-mismatch')
+    if (Date.parse(result.branch.expires_at ?? '') !== Date.parse(record.expiresAt))
+      throw new PreviewFailure('neon-ownership', 'expiry-mismatch')
     return result.branch
   }
   async function endpoints(branch: string) {
@@ -104,7 +107,9 @@ export function createNeon(client: JsonClient, codec: StateCodec) {
     const branch = await owned(record)
     if (!branch || branch.id !== identity.branchId)
       throw new Error('Recorded Neon branch is missing')
-    await verifyPreviewControlPlane(identity, (path) => client.get<Record<string, unknown>>(path))
+    await atPreviewStage('neon-control-plane', () =>
+      verifyPreviewControlPlane(identity, (path) => client.get<Record<string, unknown>>(path)),
+    )
   }
   async function ownerUrl(branchId: string, endpointId: string, host: string, database: string) {
     const query = new URLSearchParams({
@@ -158,34 +163,41 @@ export function createNeon(client: JsonClient, codec: StateCodec) {
       return ownerUrl(previewProject.parentBranchId, endpoint.id, endpoint.host, 'neondb')
     },
     async ensure(record: PreviewRecord): Promise<PreviewIdentity> {
-      await parent()
-      let branch = await owned(record)
+      await atPreviewStage('neon-parent', () => parent())
+      let branch = await atPreviewStage('neon-branch-lookup', () => owned(record))
       if (!branch) {
-        if (record.identity)
-          throw new Error('Preview branch disappeared; explicit recreation required')
-        const existing = await branches()
+        if (record.identity) throw new PreviewFailure('neon-branch-lookup', 'branch-missing')
+        const existing = await atPreviewStage('neon-branch-lookup', () => branches())
         if (existing.filter((row) => row.id !== previewProject.parentBranchId).length >= 2)
-          throw new Error('Preview capacity reached')
+          throw new PreviewFailure('neon-branch-create', 'capacity-reached')
         // POST is deliberately not retried blindly. A signed creation annotation permits recovery.
-        const created = await client.post<BranchResponse>(`${prefix}/branches`, {
-          branch: {
-            name: `pr-${record.pr}`,
-            parent_id: previewProject.parentBranchId,
-            init_source: 'parent-data',
-            expires_at: record.expiresAt.replace('.000Z', 'Z'),
-          },
-          endpoints: [
-            { type: 'read_write', autoscaling_limit_min_cu: 0.25, autoscaling_limit_max_cu: 0.25 },
-          ],
-          annotation_value: codec.annotation(record.pr, record.expiresAt),
-        })
+        const created = await atPreviewStage('neon-branch-create', () =>
+          client.post<BranchResponse>(`${prefix}/branches`, {
+            branch: {
+              name: `pr-${record.pr}`,
+              parent_id: previewProject.parentBranchId,
+              init_source: 'parent-data',
+              expires_at: record.expiresAt.replace('.000Z', 'Z'),
+            },
+            endpoints: [
+              {
+                type: 'read_write',
+                autoscaling_limit_min_cu: 0.25,
+                autoscaling_limit_max_cu: 0.25,
+              },
+            ],
+            annotation_value: codec.annotation(record.pr, record.expiresAt),
+          }),
+        )
         if (!/^br-[a-z0-9-]+$/.test(created.branch.id))
-          throw new Error('Neon branch identity missing')
-        branch = await owned({ ...record, identity: undefined })
+          throw new PreviewFailure('neon-branch-create', 'branch-identity-mismatch')
+        branch = await atPreviewStage('neon-ownership', () =>
+          owned({ ...record, identity: undefined }),
+        )
         if (!branch || branch.id !== created.branch.id)
-          throw new Error('Neon creation ownership not confirmed')
+          throw new PreviewFailure('neon-ownership', 'created-branch-unconfirmed')
       }
-      const endpoint = await endpoints(branch.id)
+      const endpoint = await atPreviewStage('neon-endpoint', () => endpoints(branch.id))
       const identity = readPreviewIdentity(
         JSON.stringify({
           projectId: previewProject.id,
@@ -198,18 +210,22 @@ export function createNeon(client: JsonClient, codec: StateCodec) {
         }),
       )
       await verify(identity, { ...record, identity })
-      const { databases } = await client.get<{
-        databases: { name: string; branch_id: string; owner_name: string }[]
-      }>(`${prefix}/branches/${branch.id}/databases`)
+      const { databases } = await atPreviewStage('neon-database-inventory', () =>
+        client.get<{
+          databases: { name: string; branch_id: string; owner_name: string }[]
+        }>(`${prefix}/branches/${branch.id}/databases`),
+      )
       const database = databases.find((row) => row.name === identity.database)
       if (databases.some((row) => !['neondb', identity.database].includes(row.name)))
-        throw new Error('Foreign database on Preview branch')
+        throw new PreviewFailure('neon-database-inventory', 'database-inventory-mismatch')
       if (database && (database.branch_id !== branch.id || database.owner_name !== 'neondb_owner'))
-        throw new Error('Preview database owner differs')
+        throw new PreviewFailure('neon-database-inventory', 'database-owner-mismatch')
       if (!database)
-        await client.post(`${prefix}/branches/${branch.id}/databases`, {
-          database: { name: identity.database, owner_name: 'neondb_owner' },
-        })
+        await atPreviewStage('neon-database-create', () =>
+          client.post(`${prefix}/branches/${branch.id}/databases`, {
+            database: { name: identity.database, owner_name: 'neondb_owner' },
+          }),
+        )
       return identity
     },
     async connection(identity: PreviewIdentity, record: PreviewRecord) {

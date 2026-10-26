@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { createJsonClient } from './http'
-import { safePreviewFailure, type PreviewStage } from './diagnostics'
+import { atPreviewStage, safePreviewFailure, type PreviewStage } from './diagnostics'
 import { createStateCodec } from './state'
 import { createGitHub } from './providers/github'
 import { createNeon } from './providers/neon'
@@ -165,13 +165,16 @@ async function main() {
     ...github,
     now: () => new Date(),
     async database(current, record) {
-      await github.baseline(current)
-      await github.assertAllocationAllowed()
-      await render.base()
-      return withAllocationLease(await neon.parentUrl(), async () => {
-        await assertCurrent(current, github)
-        return neon.ensure(record)
-      })
+      await atPreviewStage('allocation-baseline', () => github.baseline(current))
+      await atPreviewStage('allocation-policy', () => github.assertAllocationAllowed())
+      await atPreviewStage('render-base', () => render.base())
+      const parentUrl = await atPreviewStage('neon-parent', () => neon.parentUrl())
+      return atPreviewStage('allocation-lease', () =>
+        withAllocationLease(parentUrl, async () => {
+          await assertCurrent(current, github)
+          return neon.ensure(record)
+        }),
+      )
     },
     async prepare(current, record) {
       const files = await github.migrationFiles(current.sha)
