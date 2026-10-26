@@ -161,3 +161,29 @@ an operator merge; do not activate them from an untrusted feature branch.
 Controller configuration and workflow changes take effect only after review and
 promotion to trusted `main`; a feature-branch edit does not change a running
 controller. Do not execute untrusted PR controller code to obtain diagnostics.
+
+## Allocation diagnostics
+
+The trusted CLI logs only allowlisted `stage`, numeric `http` (or `unknown`),
+and allowlisted `reason`. Reconcile preserves the innermost safe diagnostic
+even when secondary failure-status publication also fails. Raw provider/SQL
+errors, causes, URLs, annotation contents, signatures and credentials are not
+logged. This changes observability only: all ownership, expiry, capacity and
+identity guards remain blocking; POSTs are not retried or resources reset.
+
+Allocation stages distinguish baseline/policy, Render base validation, Neon
+parent metadata, parent allocation lease, branch lookup/creation, ownership,
+endpoint, control-plane verification and database inventory/creation. Later
+failures identify prepare/bind/verify or the first database-identity record save.
+For ownership, reasons distinguish branch identity, missing annotation,
+annotation mismatch, expiry mismatch and unconfirmed creation. A signed
+`reserved` GitHub record does not prove that no external branch was created:
+a remote POST may succeed before ownership verification or record persistence
+fails. Never delete/adopt a partially created branch merely to obtain green CI.
+
+After this change is reviewed and merged into trusted `main`, dispatch a new
+Isolated Preview run from `main` for the same PR to obtain current diagnostics.
+An existing run or a feature-branch controller does not activate the change.
+If `neon-ownership` fails, retain the existing branch and inspect authoritative
+metadata; do not remove signature/expiry validation. This diagnostic patch
+does not identify or fix the underlying PR #123 allocation failure by itself.
