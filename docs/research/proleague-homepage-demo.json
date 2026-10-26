@@ -1,0 +1,251 @@
+{
+  "demoOnly": true,
+  "notice": "Демонстраційний макет. Назви, результати й повідомлення вигадані.",
+  "snapshot": "2026-10-25T12:00:00+02:00",
+  "timezone": "Europe/Kyiv",
+  "purpose": "Спільний контент для порівняння концепцій; не API-контракт і не seed бази даних.",
+  "navigation": ["Матчі", "Змагання", "Новини", "Про федерацію"],
+  "competitions": [
+    {
+      "id": "c1",
+      "name": "Чемпіонат Приозерського краю",
+      "season": "2026/27",
+      "stage": "Ліговий етап",
+      "presentation": "Триває",
+      "teamIds": ["a", "b", "c", "d"]
+    },
+    {
+      "id": "c2",
+      "name": "Кубок Приозерського краю",
+      "season": "2026/27",
+      "stage": "Півфінали",
+      "presentation": "Триває",
+      "teamIds": ["a", "b", "c", "d"]
+    },
+    {
+      "id": "c3",
+      "name": "Відкрита першість громад Приозерського краю",
+      "season": "2027",
+      "stage": null,
+      "presentation": "Підготовка",
+      "teamIds": []
+    }
+  ],
+  "teams": [
+    { "id": "a", "name": "ФК «Обрій»", "emblem": "neutral-placeholder" },
+    { "id": "b", "name": "СК «Приозерськ»", "emblem": "neutral-placeholder" },
+    { "id": "c", "name": "ФК «Єдність територіальних громад»", "emblem": "neutral-placeholder" },
+    { "id": "d", "name": "ФК «Джерело»", "emblem": "neutral-placeholder" }
+  ],
+  "matches": [
+    {
+      "id": "m1",
+      "competitionId": "c1",
+      "round": 1,
+      "home": "a",
+      "away": "b",
+      "kickoff": "2026-10-17T14:00:00+03:00",
+      "status": "finished",
+      "score": [2, 1]
+    },
+    {
+      "id": "m2",
+      "competitionId": "c1",
+      "round": 1,
+      "home": "c",
+      "away": "d",
+      "kickoff": "2026-10-17T16:00:00+03:00",
+      "status": "finished",
+      "score": [0, 0]
+    },
+    {
+      "id": "m3",
+      "competitionId": "c1",
+      "round": 2,
+      "home": "a",
+      "away": "c",
+      "kickoff": "2026-10-20T14:00:00+03:00",
+      "status": "finished",
+      "score": [1, 1]
+    },
+    {
+      "id": "m4",
+      "competitionId": "c1",
+      "round": 2,
+      "home": "b",
+      "away": "d",
+      "kickoff": "2026-10-20T16:00:00+03:00",
+      "status": "finished",
+      "score": [3, 0]
+    },
+    {
+      "id": "m5",
+      "competitionId": "c1",
+      "round": 3,
+      "home": "a",
+      "away": "d",
+      "kickoff": "2026-10-24T14:00:00+03:00",
+      "status": "finished",
+      "score": [2, 0]
+    },
+    {
+      "id": "m6",
+      "competitionId": "c1",
+      "round": 3,
+      "home": "b",
+      "away": "c",
+      "kickoff": "2026-10-24T16:00:00+03:00",
+      "status": "finished",
+      "score": [1, 2]
+    },
+    {
+      "id": "m7",
+      "competitionId": "c1",
+      "round": 4,
+      "home": "b",
+      "away": "a",
+      "kickoff": "2026-10-31T14:00:00+02:00",
+      "status": "scheduled",
+      "score": null
+    },
+    {
+      "id": "m8",
+      "competitionId": "c1",
+      "round": 4,
+      "home": "d",
+      "away": "c",
+      "kickoff": "2026-10-31T16:00:00+02:00",
+      "status": "scheduled",
+      "score": null
+    },
+    {
+      "id": "m9",
+      "competitionId": "c2",
+      "round": null,
+      "home": "a",
+      "away": "c",
+      "kickoff": null,
+      "status": "postponed",
+      "score": null,
+      "previousKickoff": "2026-10-28T14:00:00+02:00"
+    },
+    {
+      "id": "m10",
+      "competitionId": "c2",
+      "round": null,
+      "home": "b",
+      "away": "d",
+      "kickoff": null,
+      "status": "cancelled",
+      "score": null,
+      "previousKickoff": "2026-10-28T16:00:00+02:00"
+    }
+  ],
+  "standings": {
+    "competitionId": "c1",
+    "season": "2026/27",
+    "stage": "Ліговий етап",
+    "label": "Попередня турнірна таблиця",
+    "pointsForDemo": { "win": 3, "draw": 1, "loss": 0 },
+    "rows": [
+      {
+        "position": 1,
+        "teamId": "a",
+        "played": 3,
+        "won": 2,
+        "drawn": 1,
+        "lost": 0,
+        "goalsFor": 5,
+        "goalsAgainst": 2,
+        "goalDifference": 3,
+        "points": 7
+      },
+      {
+        "position": 2,
+        "teamId": "c",
+        "played": 3,
+        "won": 1,
+        "drawn": 2,
+        "lost": 0,
+        "goalsFor": 3,
+        "goalsAgainst": 2,
+        "goalDifference": 1,
+        "points": 5
+      },
+      {
+        "position": 3,
+        "teamId": "b",
+        "played": 3,
+        "won": 1,
+        "drawn": 0,
+        "lost": 2,
+        "goalsFor": 5,
+        "goalsAgainst": 4,
+        "goalDifference": 1,
+        "points": 3
+      },
+      {
+        "position": 4,
+        "teamId": "d",
+        "played": 3,
+        "won": 0,
+        "drawn": 1,
+        "lost": 2,
+        "goalsFor": 0,
+        "goalsAgainst": 5,
+        "goalDifference": -5,
+        "points": 1
+      }
+    ]
+  },
+  "articles": [
+    {
+      "id": "n1",
+      "category": "Новини",
+      "title": "Третій тур завершено: «Обрій» зберігає перше місце",
+      "summary": "Підтверджені результати третього туру та оновлена попередня таблиця чемпіонату.",
+      "publishedAt": "2026-10-24T19:00:00+03:00",
+      "media": "neutral-placeholder"
+    },
+    {
+      "id": "n2",
+      "category": "Оголошення",
+      "title": "Матч «Обрій» — «Єдність територіальних громад» перенесено",
+      "summary": "Нову дату півфіналу кубка буде оприлюднено після підтвердження розкладу.",
+      "publishedAt": "2026-10-25T10:00:00+02:00",
+      "media": "neutral-placeholder"
+    },
+    {
+      "id": "n3",
+      "category": "Рішення федерації",
+      "title": "Матч «Приозерськ» — «Джерело» в кубку скасовано",
+      "summary": "У календарі кубка оновлено статус матчу. Скасування не означає присудження рахунку або визначення переможця.",
+      "publishedAt": "2026-10-25T11:00:00+02:00",
+      "media": "neutral-placeholder"
+    }
+  ],
+  "federation": {
+    "name": "Федерація футболу Приозерського краю",
+    "description": "Інформація про місцеві футбольні змагання: календарі, підтверджені результати та повідомлення федерації.",
+    "email": "info@example.org",
+    "contactNotice": "Вигадані назва й контакт для макета. Не надсилати листи."
+  },
+  "copy": {
+    "pageHeading": "Матчі та результати",
+    "allCompetitions": "Усі змагання",
+    "tabs": ["Результати", "Найближчі"],
+    "fullStandings": "Повна таблиця",
+    "allCompetitionsLink": "Усі змагання",
+    "allNews": "Усі новини",
+    "freshness": "Дані станом на 25 жовтня 2026, 12:00 за Києвом",
+    "postponed": "Перенесено. Нові дата й час уточнюються.",
+    "cancelled": "Матч скасовано",
+    "loading": "Завантажуємо матчі…",
+    "error": "Не вдалося завантажити матчі. Спробуйте ще раз.",
+    "retry": "Спробувати ще раз",
+    "emptyMatches": "У цьому змаганні поки немає опублікованих матчів.",
+    "emptyStandings": "Таблиця стане доступною після публікації відповідного етапу.",
+    "cupStandings": "Для цього етапу кубка турнірна таблиця не застосовується. Перегляньте матчі кубка.",
+    "partialFailure": "Таблицю тимчасово не вдалося оновити. Інші розділи доступні."
+  }
+}
