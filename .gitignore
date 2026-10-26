@@ -41,3 +41,8 @@ test-results
 .agents
 
 docs/design
+
+# Local agent configuration and derived design exports
+.codex/
+.stitch/designs/
+.playwright-cli/

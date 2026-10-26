@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-25",
+  "method": "Local exported HTML rendered by Chromium via Playwright CLI;externalCDN loaded;not application tests",
+  "cases": [
+    {
+      "screen": "mobile",
+      "cssWidth": 320,
+      "cssHeight": 800,
+      "scrollWidth": 320,
+      "tableWidth": 340,
+      "tableContainerWidth": 252,
+      "menuHeight": 44,
+      "loadedImages": 5,
+      "tableRows": 4,
+      "visibleCheckedElementsBelow14px": 0
+    },
+    {
+      "screen": "mobile",
+      "cssWidth": 390,
+      "cssHeight": 844,
+      "scrollWidth": 390,
+      "tableWidth": 340,
+      "tableContainerWidth": 322,
+      "menuHeight": 44,
+      "loadedImages": 5,
+      "tableRows": 4,
+      "visibleCheckedElementsBelow14px": 0
+    },
+    {
+      "screen": "tablet",
+      "cssWidth": 834,
+      "cssHeight": 1112,
+      "scrollWidth": 834,
+      "tableWidth": 736,
+      "tableContainerWidth": 736,
+      "menuHeight": 46,
+      "loadedImages": 5,
+      "tableRows": 4,
+      "visibleCheckedElementsBelow14px": 0
+    },
+    {
+      "screen": "desktop",
+      "cssWidth": 1440,
+      "cssHeight": 1000,
+      "scrollWidth": 1440,
+      "loadedImages": 5,
+      "tableRows": 4,
+      "visibleCheckedElementsBelow14px": 57
+    }
+  ],
+  "checkedElements": "visible p,button,a,td,th only;not a full typography/a11y audit",
+  "content": "Mobile/tablet:2scheduledfixtures;all4table rows match common demo;forbiddeninventedvenues/qualification/legaldesignation absent;state sheet m1 correct",
+  "limitations": [
+    "No interaction acceptance;menu/tabs/retry future specification",
+    "No screen-reader,contrast,200%zoom,landscape or cross-browser acceptance",
+    "Photo origin and production rights not independently verified",
+    "Desktop typography floor remains unresolved"
+  ]
+}
