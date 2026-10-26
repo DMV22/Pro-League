@@ -130,6 +130,9 @@ jobs:
       - name: Start isolated PostgreSQL 18
         if: needs.changes.outputs.runtime == 'true'
         run: docker compose -p proleague-ci-integration -f compose.postgres.ci.yaml up -d --wait
+      - name: Install locked standalone Preview dependencies
+        if: needs.changes.outputs.runtime == 'true'
+        run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
       - name: Apply reviewed migrations and run integration suite
         if: needs.changes.outputs.runtime == 'true'
         run: |

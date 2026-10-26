@@ -41,7 +41,10 @@ export function createJsonClient(
       }
       if (!response.ok) {
         await response.body?.cancel()
-        if ([429, 502, 503, 504].includes(response.status) && attempt + 1 < attempts) {
+        const retryable =
+          [429, 502, 503, 504].includes(response.status) ||
+          (method === 'GET' && response.status === 500)
+        if (retryable && attempt + 1 < attempts) {
           await pause(1000 * 2 ** attempt)
           continue
         }

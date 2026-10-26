@@ -1,0 +1,125 @@
+name: M3 cloud evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/m3-cloud-evidence.yml', 'scripts/testing/m3-cloud*']
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Open marker-only M3 pilot PR number
+        required: true
+        type: string
+      sha:
+        description: Exact 40-character pilot head SHA
+        required: true
+        type: string
+      controller_run:
+        description: Successful Isolated Preview run for this SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - run: node --test scripts/testing/m3-cloud.checks.mjs
+
+  collect:
+    if: github.event_name == 'workflow_dispatch'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    concurrency:
+      group: m3-cloud-evidence-${{ inputs.pr }}
+      cancel-in-progress: false
+    env:
+      M3_PR: ${{ inputs.pr }}
+      M3_SHA: ${{ inputs.sha }}
+      M3_CONTROLLER_RUN: ${{ inputs.controller_run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - name: Validate open pilot, successful controller and exact deployment
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/testing/m3-cloud-target.mjs
+      - name: Copy existing controller evidence as inert data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: ${{ steps.target.outputs.artifact }}
+        run: gh run download "$M3_CONTROLLER_RUN" --repo DMV22/Pro-League --name "$ARTIFACT_NAME" --dir artifacts/m3-cloud/controller
+      - name: Checkout reviewed application baseline, never PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.target.outputs.baseline }}
+          path: application
+          persist-credentials: false
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@22.14.0
+          cache: true
+          require-lockfile: true
+      - run: npm ci --prefix scripts/preview --ignore-scripts --no-audit --no-fund
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Record actual collector browser and tool versions
+        run: node scripts/testing/m3-cloud-versions.mjs
+      - name: Credential-free server HTML, synthetic notice and noindex smoke
+        env:
+          PREVIEW_ORIGIN: ${{ steps.target.outputs.origin }}
+          PREVIEW_PR: ${{ inputs.pr }}
+        run: node --import ./scripts/preview/node_modules/tsx/dist/loader.mjs scripts/preview/smoke.ts
+      - name: Read-only public journey and axe; zero retries
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.target.outputs.origin }}
+          PUBLIC_PREVIEW_SMOKE: '1'
+          PUBLIC_NAVIGATION_TEST_FIXTURE: '1'
+          PLAYWRIGHT_JSON_OUTPUT_FILE: artifacts/m3-cloud/browser.json
+        run: >-
+          pnpm exec playwright test --config=application/playwright.config.ts
+          public-navigation.spec.ts public-navigation.a11y.spec.ts
+          --project=chromium --project=chromium-mobile --workers=1 --retries=0
+          --trace=on --output=artifacts/m3-cloud/browser-traces --reporter=line,json
+      - name: Additional mobile route measurements; retain diagnostic Performance
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.target.outputs.origin }}
+        run: |
+          pnpm exec lhci collect --config=scripts/testing/m3-cloud.lighthouserc.cjs
+          pnpm exec lhci upload --config=scripts/testing/m3-cloud.lighthouserc.cjs
+      - name: Recheck pilot identity after collection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/testing/m3-cloud-target.mjs --after
+      - name: Reject incomplete, skipped or non-exempt failed evidence
+        run: node scripts/testing/m3-cloud-summary.mjs
+      - name: Retain reports and traces for the milestone
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m3-cloud-${{ inputs.pr }}-${{ inputs.sha }}-${{ github.run_id }}
+          path: |
+            artifacts/m3-cloud
+            .lighthouseci
+            ./*.trace.json
+            ./*.devtoolslog.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90

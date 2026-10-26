@@ -3,11 +3,18 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { createJsonClient } from './http'
+import { safePreviewFailure, type PreviewStage } from './diagnostics'
 import { createStateCodec } from './state'
 import { createGitHub } from './providers/github'
 import { createNeon } from './providers/neon'
 import { createRender } from './providers/render'
-import { assertCurrent, cleanupPreview, reconcilePreview, type PreviewSystems } from './reconcile'
+import {
+  assertCurrent,
+  cleanupPreview,
+  createReservation,
+  reconcilePreview,
+  type PreviewSystems,
+} from './reconcile'
 import { planPreview } from './policy'
 import { bundleDigest, withMigrationBundle } from './migrations'
 import { prepareDatabase, readerUrl, verifyReader, withAllocationLease } from './database'
@@ -18,6 +25,7 @@ const baseline = JSON.parse(
   readFileSync(new URL('./approved-migrations.json', import.meta.url), 'utf8'),
 ).bundleHash as string
 let reportFailure: (() => Promise<void>) | undefined
+let failureStage: PreviewStage = 'bootstrap'
 const secret = (name: string) => {
   const value = process.env[name]
   if (!value) throw new Error('Required Preview control configuration missing')
@@ -71,6 +79,7 @@ async function main() {
     throw new Error('Unknown Preview operation')
   const codec = createStateCodec(secret('PREVIEW_STATE_KEY'))
   const github = createGitHub(createJsonClient('https://api.github.com', secret('GH_TOKEN')), codec)
+  failureStage = 'environment'
   await github.assertEnvironment(
     command === 'review' ? 'preview-migrations' : 'preview-control',
     command === 'review',
@@ -81,6 +90,7 @@ async function main() {
   const prNumber = Number(number)
   if (command !== 'sweep' && (!Number.isSafeInteger(prNumber) || prNumber < 1))
     throw new Error('Invalid PR number')
+  failureStage = 'pr-metadata'
   const pr = command === 'sweep' ? undefined : await github.current(prNumber)
   if (
     pr?.repository === 'DMV22/Pro-League' &&
@@ -92,7 +102,10 @@ async function main() {
   if (pr && process.env.EXPECTED_PR_SHA && pr.sha !== process.env.EXPECTED_PR_SHA)
     throw new Error('PR changed')
   if (pr && command === 'inspect') {
-    const plan = planPreview(pr, await github.files(pr))
+    failureStage = 'inspect-files'
+    const changedFiles = await github.files(pr)
+    failureStage = 'inspect-plan'
+    const plan = planPreview(pr, changedFiles)
     output(
       'action',
       plan.kind === 'prepare' ? 'prepare' : plan.kind === 'cleanup' ? 'cleanup' : 'skip',
@@ -101,14 +114,19 @@ async function main() {
     output('pr', String(pr.number))
     output('review', 'false')
     if (plan.kind !== 'prepare') {
+      failureStage = 'status-publish'
       if (plan.kind === 'skip')
         await github.status(pr, 'success', 'No eligible runtime Preview required')
       return
     }
+    failureStage = 'status-publish'
     await github.status(pr, 'pending', 'Isolated Preview preparation pending')
+    failureStage = 'baseline-ci'
     await github.baseline(pr)
+    failureStage = 'migration-bundle'
     const files = await github.migrationFiles(pr.sha)
     const hash = await withMigrationBundle(files, async () => bundleDigest(files))
+    failureStage = 'ownership-record'
     const record = await github.record(pr.number)
     output('manifest', hash)
     output('review', String(hash !== baseline && hash !== record?.migrationHash))
@@ -116,6 +134,7 @@ async function main() {
     return
   }
   if (pr && command === 'review') {
+    failureStage = 'review'
     const files = await github.migrationFiles(pr.sha)
     await withMigrationBundle(files, async () => {
       if (bundleDigest(files) !== process.env.APPROVED_MIGRATION_HASH)
@@ -125,6 +144,7 @@ async function main() {
     console.info(`Approved exact migration bundle for PR #${pr.number}, SHA ${pr.sha}`)
     return
   }
+  failureStage = 'provider-init'
   const neon = createNeon(
     createJsonClient('https://console.neon.tech/api/v2', secret('NEON_API_KEY')),
     codec,
@@ -146,8 +166,7 @@ async function main() {
     now: () => new Date(),
     async database(current, record) {
       await github.baseline(current)
-      if (await github.hasCleanupAlert())
-        throw new Error('Resolve cleanup alerts before allocating new Previews')
+      await github.assertAllocationAllowed()
       await render.base()
       return withAllocationLease(await neon.parentUrl(), async () => {
         await assertCurrent(current, github)
@@ -206,10 +225,13 @@ async function main() {
         { PREVIEW_ORIGIN: origin, PREVIEW_PR: String(current.number) },
       )
       const config = fileURLToPath(new URL('../../lighthouserc.cjs', import.meta.url))
+      console.log(
+        'Temporary #96 waiver: cloud Performance/LCP/TBT are diagnostic for provisional UI',
+      )
       await safeProcess(
         require.resolve('@lhci/cli/src/cli.js'),
         ['autorun', `--config=${config}`],
-        { LHCI_BASE_URL: origin },
+        { LHCI_BASE_URL: origin, LHCI_PREVIEW_PERFORMANCE: 'diagnostic' },
       )
       await render.live(record.serviceId!, record.deployId!, current.number, branch, current.sha)
     },
@@ -230,6 +252,7 @@ async function main() {
     },
   }
   if (command === 'sweep') {
+    failureStage = 'sweep'
     const failures: number[] = []
     const known = new Set<string>()
     const knownServices = new Set<string>()
@@ -247,13 +270,7 @@ async function main() {
         }
         if (current.state === 'closed') await cleanupPreview(current, systems)
         else if (Date.parse(record.expiresAt) <= Date.now()) {
-          await systems.remove(current, record)
-          await github.save({ ...record, phase: 'cleaned' })
-          await github.status(
-            current,
-            'failure',
-            'Preview expired; explicit operator recreation required',
-          )
+          await cleanupPreview(current, systems, 'expired')
         }
       } catch {
         failures.push(n)
@@ -272,29 +289,27 @@ async function main() {
   }
   if (!pr) throw new Error('PR missing')
   if (command === 'recreate') {
+    failureStage = 'recreate'
     if (process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || pr.state !== 'open')
       throw new Error('Recreation needs explicit operator dispatch')
     const record = await github.record(pr.number)
     if (!record || record.phase !== 'cleaned')
       throw new Error('Recreation requires confirmed cleanup first')
+    // Do not replace the cleaned ownership record while a cleanup alert is unresolved.
+    await github.assertAllocationAllowed()
     await assertCurrent(pr, github)
-    await github.save({
-      pr: pr.number,
-      sha: pr.sha,
-      phase: 'reserved',
-      expiresAt: new Date(Math.floor(Date.now() / 1000) * 1000 + 7 * 86400_000).toISOString(),
-    })
+    await github.save(createReservation(pr, new Date()))
   }
+  failureStage = 'reconcile'
   await reconcilePreview(pr, systems)
 }
 
 try {
   await main()
-} catch {
+} catch (error) {
+  const diagnostic = safePreviewFailure(failureStage, error)
   await reportFailure?.().catch(() => undefined)
   // Deliberately no raw error/stack: upstream SQL and API errors may carry credentials.
-  console.error(
-    '::error::Isolated Preview operation failed. Check PR state, approved digest, resource ownership, capacity and provider availability. Do not reset or attach a shared database.',
-  )
+  console.error(diagnostic)
   process.exitCode = 1
 }

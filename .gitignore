@@ -16,6 +16,10 @@ out
 dist
 dist-ssr
 artifacts
+/*.trace.json
+/*.devtoolslog.json
+/scripts/preview/*.trace.json
+/scripts/preview/*.devtoolslog.json
 playwright-report
 test-results
 *.local
@@ -37,3 +41,8 @@ test-results
 .agents
 
 docs/design
+
+# Local agent configuration and derived design exports
+.codex/
+.stitch/designs/
+.playwright-cli/
