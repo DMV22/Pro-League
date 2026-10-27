@@ -40,13 +40,18 @@ async function sqlState(client: PoolClient, statement: string, expected: string)
   assert.equal(actual, expected, `${statement} must fail with ${expected}`)
 }
 
-function runExisting(script: string): void {
+function runExisting(script: string, args: string[] = []): void {
   const child = spawnSync(
     process.execPath,
-    ['--conditions=react-server', '--import', 'tsx', script],
+    ['--conditions=react-server', '--import', 'tsx', script, ...args],
     {
       cwd: process.cwd(),
-      env: { ...process.env, DATABASE_URL: url, MIGRATION_DATABASE_URL: url },
+      env: {
+        ...process.env,
+        DATABASE_URL: url,
+        MIGRATION_DATABASE_URL: url,
+        INTEGRATION_DATABASE_URL: url,
+      },
       stdio: 'inherit',
     },
   )
@@ -261,6 +266,7 @@ try {
   runExisting('scripts/db/verify-public-queries.ts')
   runExisting('scripts/db/verify-public-navigation.ts')
   runExisting('scripts/db/verify-public-cache.ts')
+  runExisting('scripts/db/verify-audit.ts', [`--target=${target}`, `--confirm-db=${confirmation}`])
   await verifyRoleAndRollback()
   await verifyQueueClaims()
   await verifyParentBeforeChildLock()
