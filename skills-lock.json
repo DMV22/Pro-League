@@ -81,6 +81,13 @@
       "skillPath": "skills/engineering/research/SKILL.md",
       "computedHash": "2c8b768d5f0309eaea9f92ef740101e813645b39aef88fb82733a52eae23dc0b"
     },
+    "security-best-practices": {
+      "source": "openai/skills",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/.curated/security-best-practices/SKILL.md",
+      "computedHash": "0c42fff660b6f7e85add36437edc36976466bb254b7cd9eb38ec67b2ad64a9bf"
+    },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -100,6 +107,13 @@
       "ref": "0337446dadde6f8c94210444e2aa9d546126480f",
       "skillPath": "plugins/stitch-design/skills/manage-design-system/SKILL.md",
       "computedHash": "e55ef1adf10175b9ce3915f0bc7208904805ff14ce954349365dc5aabaa8359b"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "128fac78002d916c8ca908245d398e634f540d8bcf20915b2b2359aeb18eba59"
     },
     "tdd": {
       "source": "mattpocock/skills",
