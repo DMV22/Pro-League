@@ -37,6 +37,170 @@ const intent = () => {
 }
 
 try {
+  const maintenanceDelivery = createOutboxDelivery(database)
+  const expiredHead = intent()
+  const healthyTail = intent()
+  await transaction.run(async ({ outbox }) => {
+    await outbox.enqueue(expiredHead)
+    await outbox.enqueue(healthyTail)
+  })
+  // Synthetic queue preparation: the exhausted candidate sorts before healthy due work.
+  await pool.query(
+    `UPDATE app.outbox_messages SET state = 'leased', attempt_count = 3,
+    available_at = clock_timestamp() - interval '2 minutes',
+    lease_until_at = clock_timestamp() - interval '1 second' WHERE id = $1`,
+    [expiredHead.id],
+  )
+  await pool.query(
+    "UPDATE app.outbox_messages SET available_at = clock_timestamp() - interval '1 minute' WHERE id = $1",
+    [healthyTail.id],
+  )
+  const maintenanceSummary = await dispatchOutboxBatch(
+    maintenanceDelivery,
+    {
+      'test.effect': {
+        ...policies['test.effect'],
+        async run() {
+          return 'succeeded' as const
+        },
+      },
+    },
+    { maxMessages: 2, maxAttempts: 3 },
+  )
+  assert.equal(
+    maintenanceSummary.succeeded,
+    1,
+    'Maintenance terminated dispatch before healthy due work',
+  )
+  assert.deepEqual(maintenanceSummary, {
+    scanned: 2,
+    processed: 1,
+    succeeded: 1,
+    retry: 0,
+    failed: 0,
+    exhausted: 1,
+    lostLease: 0,
+  })
+  const boundedHead = intent()
+  const boundedTail = intent()
+  await transaction.run(async ({ outbox }) => {
+    await outbox.enqueue(boundedHead)
+    await outbox.enqueue(boundedTail)
+  })
+  await pool.query(
+    `UPDATE app.outbox_messages SET state = 'leased', attempt_count = 3,
+    available_at = clock_timestamp() - interval '2 minutes',
+    lease_until_at = clock_timestamp() - interval '1 second' WHERE id = $1`,
+    [boundedHead.id],
+  )
+  await pool.query(
+    "UPDATE app.outbox_messages SET available_at = clock_timestamp() - interval '1 minute' WHERE id = $1",
+    [boundedTail.id],
+  )
+  const maintenanceOnly = await dispatchOutboxBatch(
+    maintenanceDelivery,
+    {},
+    { maxMessages: 1, maxAttempts: 3 },
+  )
+  assert.deepEqual(maintenanceOnly, {
+    scanned: 1,
+    processed: 0,
+    succeeded: 0,
+    retry: 0,
+    failed: 0,
+    exhausted: 1,
+    lostLease: 0,
+  })
+  assert.equal(
+    (await pool.query('SELECT state FROM app.outbox_messages WHERE id = $1', [boundedTail.id]))
+      .rows[0].state,
+    'pending',
+    'Maintenance bypassed maxMessages budget',
+  )
+  const nextRun = await dispatchOutboxBatch(
+    maintenanceDelivery,
+    {
+      'test.effect': {
+        ...policies['test.effect'],
+        async run() {
+          return 'succeeded' as const
+        },
+      },
+    },
+    { maxMessages: 1, maxAttempts: 3 },
+  )
+  assert.deepEqual(nextRun, {
+    scanned: 1,
+    processed: 1,
+    succeeded: 1,
+    retry: 0,
+    failed: 0,
+    exhausted: 0,
+    lostLease: 0,
+  })
+  const expiredOnly = [intent(), intent()]
+  await transaction.run(async ({ outbox }) => {
+    for (const item of expiredOnly) await outbox.enqueue(item)
+  })
+  await pool.query(
+    `UPDATE app.outbox_messages SET state = 'leased', attempt_count = 3,
+    lease_until_at = clock_timestamp() - interval '1 second' WHERE id = ANY($1::uuid[])`,
+    [expiredOnly.map((item) => item.id)],
+  )
+  assert.deepEqual(await maintenanceDelivery.claim({ limit: 2, leaseMs: 30_000, maxAttempts: 3 }), {
+    leases: [],
+    scannedCount: 2,
+    exhaustedCount: 2,
+  })
+  assert.deepEqual(await maintenanceDelivery.claim({ limit: 2, leaseMs: 30_000, maxAttempts: 3 }), {
+    leases: [],
+    scannedCount: 0,
+    exhaustedCount: 0,
+  })
+  const maintenanceQueue = [intent(), intent(), intent()]
+  await transaction.run(async ({ outbox }) => {
+    for (const item of maintenanceQueue) await outbox.enqueue(item)
+  })
+  await pool.query(
+    `UPDATE app.outbox_messages SET state = 'leased', attempt_count = 3,
+    lease_until_at = clock_timestamp() - interval '1 second' WHERE id = ANY($1::uuid[])`,
+    [maintenanceQueue.map((item) => item.id)],
+  )
+  assert.deepEqual(
+    await dispatchOutboxBatch(maintenanceDelivery, {}, { maxMessages: 2, maxAttempts: 3 }),
+    { scanned: 2, processed: 0, succeeded: 0, retry: 0, failed: 0, exhausted: 2, lostLease: 0 },
+    'Maintenance-only queue exceeded the candidate budget',
+  )
+  assert.deepEqual(
+    await maintenanceDelivery.claim({ limit: 2, leaseMs: 30_000, maxAttempts: 3 }),
+    { leases: [], scannedCount: 1, exhaustedCount: 1 },
+    'Dispatcher inspected more than its maintenance budget',
+  )
+  const racedMaintenance = intent()
+  await transaction.run(({ outbox }) => outbox.enqueue(racedMaintenance))
+  await pool.query(
+    `UPDATE app.outbox_messages SET state = 'leased', attempt_count = 3,
+    lease_until_at = clock_timestamp() - interval '1 second' WHERE id = $1`,
+    [racedMaintenance.id],
+  )
+  const maintenanceRace = await Promise.all([
+    maintenanceDelivery.claim({ limit: 1, leaseMs: 30_000, maxAttempts: 3 }),
+    maintenanceDelivery.claim({ limit: 1, leaseMs: 30_000, maxAttempts: 3 }),
+  ])
+  assert.deepEqual(
+    maintenanceRace
+      .map(({ scannedCount, exhaustedCount, leases }) => [
+        scannedCount,
+        exhaustedCount,
+        leases.length,
+      ])
+      .sort(),
+    [
+      [0, 0, 0],
+      [1, 1, 0],
+    ],
+    'Two workers counted the same maintenance twice',
+  )
   const message = intent()
   await transaction.run(async ({ competition, outbox }) => {
     await competition.createCompetition({
@@ -104,7 +268,7 @@ try {
   const delivery = createOutboxDelivery(database)
   const contended = intent()
   await transaction.run(({ outbox }) => outbox.enqueue(contended))
-  const shortLeases = await delivery.claim({ limit: 100, leaseMs: 500, maxAttempts: 3 })
+  const shortLeases = (await delivery.claim({ limit: 100, leaseMs: 500, maxAttempts: 3 })).leases
   const shortLease = shortLeases.find((lease) => lease.id === contended.id)!
   assert(shortLease)
   const blocker = await pool.connect()
@@ -154,9 +318,9 @@ try {
     delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 }),
     delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 }),
   ])
-  const ids = leases.flat().map((lease) => lease.id)
+  const ids = leases.flatMap((claim) => claim.leases).map((lease) => lease.id)
   assert.equal(new Set(ids).size, ids.length, 'Workers concurrently own the same message')
-  const first = leases.flat().find((lease) => lease.id === message.id)
+  const first = leases.flatMap((claim) => claim.leases).find((lease) => lease.id === message.id)
   assert(first, 'Committed intent was not claimable')
   await pool.query(
     "UPDATE app.outbox_messages SET lease_until_at = clock_timestamp() - interval '1 second' WHERE id = $1",
@@ -167,18 +331,18 @@ try {
     false,
     'Expired lease completed before recovery',
   )
-  const recovered = (await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })).find(
-    (lease) => lease.id === message.id,
-  )
+  const recovered = (
+    await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })
+  ).leases.find((lease) => lease.id === message.id)
   assert(recovered)
   assert(recovered.version > first.version)
   assert.equal(await delivery.settle(first, { status: 'succeeded', code: 'delivered' }), false)
   assert.equal(await delivery.settle(recovered, { status: 'succeeded', code: 'delivered' }), true)
   const retryMessage = intent()
   await transaction.run(({ outbox }) => outbox.enqueue(retryMessage))
-  const retryLease = (await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })).find(
-    (lease) => lease.id === retryMessage.id,
-  )!
+  const retryLease = (
+    await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })
+  ).leases.find((lease) => lease.id === retryMessage.id)!
   assert(retryLease)
   assert.equal(
     await delivery.settle(retryLease, {
@@ -189,7 +353,7 @@ try {
     true,
   )
   assert(
-    !(await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })).some(
+    !(await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })).leases.some(
       (lease) => lease.id === retryMessage.id,
     ),
     'Backoff was ignored',
@@ -198,16 +362,16 @@ try {
     "UPDATE app.outbox_messages SET available_at = clock_timestamp() - interval '1 second' WHERE id = $1",
     [retryMessage.id],
   )
-  const lastLease = (await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })).find(
-    (lease) => lease.id === retryMessage.id,
-  )!
+  const lastLease = (
+    await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })
+  ).leases.find((lease) => lease.id === retryMessage.id)!
   assert.equal(lastLease.attemptCount, 2)
   await pool.query(
     "UPDATE app.outbox_messages SET lease_until_at = clock_timestamp() - interval '1 second' WHERE id = $1",
     [retryMessage.id],
   )
   assert(
-    !(await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })).some(
+    !(await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 2 })).leases.some(
       (lease) => lease.id === retryMessage.id,
     ),
     'Crash recovery exceeded attempt budget',
@@ -222,9 +386,9 @@ try {
   )
   const crashMessage = intent()
   await transaction.run(({ outbox }) => outbox.enqueue(crashMessage))
-  const crashLease = (await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })).find(
-    (lease) => lease.id === crashMessage.id,
-  )!
+  const crashLease = (
+    await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })
+  ).leases.find((lease) => lease.id === crashMessage.id)!
   assert(crashLease)
   const sink = await pool.connect()
   try {
@@ -366,7 +530,7 @@ try {
   assert.equal(capped.processed, 1, 'Dispatcher exceeded batch limit')
   assert.equal(capped.exhausted, 1, 'Final transient attempt was not exhausted')
   assert.equal(
-    (await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })).filter((lease) =>
+    (await delivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })).leases.filter((lease) =>
       budgeted.some((item) => item.id === lease.id),
     ).length,
     1,

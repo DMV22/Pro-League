@@ -32,12 +32,24 @@ export async function dispatchOutboxBatch(
   const baseBackoffMs = bounded(options.baseBackoffMs ?? 1_000, 60_000)
   const handlerTimeoutMs = bounded(options.handlerTimeoutMs ?? 5_000, 20_000)
   if (leaseMs < handlerTimeoutMs + 5_000) throw new OutboxFailure('invalid')
-  const summary = { processed: 0, succeeded: 0, retry: 0, failed: 0, exhausted: 0, lostLease: 0 }
+  const summary = {
+    scanned: 0,
+    processed: 0,
+    succeeded: 0,
+    retry: 0,
+    failed: 0,
+    exhausted: 0,
+    lostLease: 0,
+  }
   const deadline = performance.now() + maxDurationMs
-  while (summary.processed < maxMessages && performance.now() < deadline) {
+  while (summary.scanned < maxMessages && performance.now() < deadline) {
     // Claim just-in-time: queued handlers must not consume their lease while waiting in a local batch.
-    const [lease] = await delivery.claim({ limit: 1, leaseMs, maxAttempts })
-    if (!lease) break
+    const claim = await delivery.claim({ limit: 1, leaseMs, maxAttempts })
+    summary.scanned += claim.scannedCount
+    summary.exhausted += claim.exhaustedCount
+    if (claim.scannedCount === 0) break
+    const [lease] = claim.leases
+    if (!lease) continue
     let result: DeliveryResult
     const type = (lease.intent as { messageType?: unknown } | null)?.messageType
     if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) {

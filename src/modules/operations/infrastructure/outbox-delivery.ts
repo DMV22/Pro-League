@@ -67,6 +67,7 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
             .limit(options.limit)
             .for('update', { skipLocked: true })
           const leases = []
+          let exhaustedCount = 0
           for (const message of candidates) {
             if (message.attemptCount >= options.maxAttempts) {
               await tx
@@ -79,6 +80,7 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
                   updatedAt: sql`clock_timestamp()`,
                 })
                 .where(eq(outboxMessages.id, message.id))
+              exhaustedCount += 1
               continue
             }
             const [leased] = await tx
@@ -109,7 +111,7 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
               },
             })
           }
-          return leases
+          return { leases, scannedCount: candidates.length, exhaustedCount }
         })
       } catch (error) {
         throw outboxFailure(error)
