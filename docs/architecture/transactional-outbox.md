@@ -57,8 +57,13 @@ that lock cannot turn a pre-wait eligibility check into a late acknowledgement.
 
 Expired leases become eligible again. If the attempt budget is already consumed,
 claim marks the bounded candidate set `exhausted` without executing another handler.
-A claim may return no leases after doing this housekeeping; another invocation can
-continue remaining work. There is no unbounded sweep or automatic reset of failures.
+`claim()` returns an `OutboxClaimResult`: `leases`, `scannedCount` and `exhaustedCount`.
+The counts describe eligible candidates locked and handled by this claim, not physical
+SQL rows scanned or a queue-wide total. An empty lease list with positive `scannedCount`
+means maintenance made progress; zero `scannedCount` means no eligible candidate could
+be locked by this claim (other workers may still own work). The dispatcher continues
+after maintenance while its candidate/time budget permits. There is no unbounded sweep
+or automatic reset of failures.
 
 ## Dispatcher and delivery guarantee
 
@@ -71,13 +76,22 @@ Defaults and hard limits:
 
 | Setting | Default | Maximum / invariant |
 | --- | --- | --- |
-| Messages per run | 20 | 100 |
+| Eligible candidates per run (`maxMessages`) | 20 | 100; includes maintenance |
 | Run budget | 30 seconds | 5 minutes |
 | Lease | 30 seconds | 10 minutes; at least handler timeout + 5 seconds |
 | Handler timeout | 5 seconds | 20 seconds |
 | Attempts, including recovered claims | 5 | 20 |
 | Retry backoff | 1 second, exponential | capped at 60 seconds |
 | Concurrent handlers per invocation | 1 | 1 |
+
+The summary reports `scanned` (all eligible candidates considered), `processed` (claimed
+messages reaching the processing path), and `exhausted` (maintenance exhaustion plus
+exhaustion reported after a handler attempt). Thus `processed` is not the whole run
+budget and `exhausted` can exceed `processed`. For example, an exhausted head followed
+by healthy due work with `maxMessages: 2` yields `scanned: 2`, `processed: 1`,
+`exhausted: 1`, `succeeded: 1`. With a budget of one, only maintenance runs; the next
+invocation can process the healthy message. A maintenance-only queue still consumes
+the candidate budget; it cannot spin indefinitely without invoking handlers.
 
 The run budget stops new work and bounds handler waiting; in-flight DB calls/settlement
 can add their bounded timeout grace. Injected handlers must honor `AbortSignal` and
