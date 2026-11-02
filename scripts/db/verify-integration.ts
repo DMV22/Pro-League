@@ -267,6 +267,7 @@ try {
   runExisting('scripts/db/verify-public-navigation.ts')
   runExisting('scripts/db/verify-public-cache.ts')
   runExisting('scripts/db/verify-audit.ts', [`--target=${target}`, `--confirm-db=${confirmation}`])
+  runExisting('scripts/db/verify-outbox.ts', [`--target=${target}`, `--confirm-db=${confirmation}`])
   await verifyRoleAndRollback()
   await verifyQueueClaims()
   await verifyParentBeforeChildLock()
