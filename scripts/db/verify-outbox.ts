@@ -7,6 +7,7 @@ import { createTransactionAdapter } from '../../src/server/db/transaction'
 import { OutboxFailure } from '../../src/modules/operations/application/outbox-port'
 import { createOutboxDelivery } from '../../src/modules/operations/infrastructure/outbox-delivery'
 import { dispatchOutboxBatch } from '../../src/modules/operations/application/dispatch-outbox'
+import type { DeliveryResult } from '../../src/modules/operations/application/outbox-delivery-port'
 import { assertIntegrationTarget } from './integration-target'
 import { loadProjectEnv } from './load-env'
 
@@ -38,6 +39,257 @@ const intent = () => {
 
 try {
   const maintenanceDelivery = createOutboxDelivery(database)
+  const invalidPolicy = (error: unknown) =>
+    error instanceof OutboxFailure && error.kind === 'invalid'
+  for (const options of [
+    { maxMessages: 0 },
+    { maxMessages: 101 },
+    { maxDurationMs: 300_001 },
+    { leaseMs: 600_001 },
+    { maxAttempts: 21 },
+    { handlerTimeoutMs: 20_001 },
+    { baseBackoffMs: 60_001 },
+    { maxMessages: 1.5 },
+    { maxDurationMs: Number.NaN },
+    { leaseMs: 9_999 },
+  ])
+    await assert.rejects(dispatchOutboxBatch(maintenanceDelivery, {}, options), invalidPolicy)
+  for (const options of [
+    { limit: 0, leaseMs: 30_000, maxAttempts: 5 },
+    { limit: 101, leaseMs: 30_000, maxAttempts: 5 },
+    { limit: 1, leaseMs: 600_001, maxAttempts: 5 },
+    { limit: 1, leaseMs: 30_000, maxAttempts: 21 },
+  ])
+    await assert.rejects(maintenanceDelivery.claim(options), invalidPolicy)
+  for (const limit of [0, 101, Number.NaN])
+    await assert.rejects(maintenanceDelivery.listProblems(limit), invalidPolicy)
+  assert.deepEqual(
+    await maintenanceDelivery.claim({ limit: 100, leaseMs: 600_000, maxAttempts: 20 }),
+    { leases: [], scannedCount: 0, exhaustedCount: 0 },
+  )
+  const emptySummary = {
+    scanned: 0,
+    processed: 0,
+    succeeded: 0,
+    retry: 0,
+    failed: 0,
+    exhausted: 0,
+    lostLease: 0,
+  }
+  assert.deepEqual(
+    await dispatchOutboxBatch(
+      maintenanceDelivery,
+      {},
+      {
+        maxMessages: 100,
+        maxDurationMs: 300_000,
+        leaseMs: 600_000,
+        maxAttempts: 20,
+        handlerTimeoutMs: 20_000,
+        baseBackoffMs: 60_000,
+      },
+    ),
+    emptySummary,
+  )
+  assert.deepEqual(
+    await dispatchOutboxBatch(maintenanceDelivery, {}, { leaseMs: 10_000 }),
+    emptySummary,
+  )
+  const defaultsBatch = Array.from({ length: 21 }, intent)
+  await transaction.run(async ({ outbox }) => {
+    for (const item of defaultsBatch) await outbox.enqueue(item)
+  })
+  const defaultSummary = await dispatchOutboxBatch(maintenanceDelivery, {
+    'test.effect': {
+      ...policies['test.effect'],
+      async run() {
+        return 'succeeded' as const
+      },
+    },
+  })
+  assert.deepEqual(
+    defaultSummary,
+    { scanned: 20, processed: 20, succeeded: 20, retry: 0, failed: 0, exhausted: 0, lostLease: 0 },
+    'Default batch policy changed',
+  )
+  const remainingDefaults = await maintenanceDelivery.claim({
+    limit: 100,
+    leaseMs: 30_000,
+    maxAttempts: 5,
+  })
+  assert.equal(remainingDefaults.leases.length, 1)
+  await maintenanceDelivery.settle(remainingDefaults.leases[0], {
+    status: 'succeeded',
+    code: 'delivered',
+  })
+  const policyFixture = intent()
+  await transaction.run(({ outbox }) => outbox.enqueue(policyFixture))
+  const policyLease = (
+    await maintenanceDelivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })
+  ).leases.find((lease) => lease.id === policyFixture.id)!
+  assert(policyLease)
+  for (const invalidResult of [
+    { status: 'succeeded', code: 'handler_timeout' },
+    { status: 'failed', code: 'delivered' },
+    { status: 'exhausted', code: 'attempt_limit' },
+    { status: 'retry', code: 'handler_failure', delayMs: 1 },
+    { status: 'retry', code: 'transient_failure', delayMs: 0 },
+    { status: 'retry', code: 'transient_failure', delayMs: 86_400_001 },
+  ]) {
+    await assert.rejects(
+      maintenanceDelivery.settle(policyLease, invalidResult as DeliveryResult),
+      (error: unknown) => error instanceof OutboxFailure && error.kind === 'invalid',
+    )
+  }
+  assert.deepEqual(
+    (
+      await pool.query('SELECT state, version FROM app.outbox_messages WHERE id = $1', [
+        policyFixture.id,
+      ])
+    ).rows[0],
+    { state: 'leased', version: policyLease.version.toString() },
+  )
+  await maintenanceDelivery.settle(policyLease, { status: 'succeeded', code: 'delivered' })
+  const legalResults: DeliveryResult[] = [
+    { status: 'failed', code: 'handler_failure' },
+    { status: 'failed', code: 'unknown_message_type' },
+    { status: 'failed', code: 'invalid_message' },
+    { status: 'exhausted', code: 'transient_failure' },
+    { status: 'exhausted', code: 'handler_timeout' },
+    { status: 'retry', code: 'transient_failure', delayMs: 86_400_000 },
+    { status: 'retry', code: 'handler_timeout', delayMs: 86_400_000 },
+  ]
+  for (const result of legalResults) {
+    const item = intent()
+    await transaction.run(({ outbox }) => outbox.enqueue(item))
+    const lease = (
+      await maintenanceDelivery.claim({ limit: 100, leaseMs: 30_000, maxAttempts: 3 })
+    ).leases.find((entry) => entry.id === item.id)!
+    assert(lease)
+    assert.equal(await maintenanceDelivery.settle(lease, result), true)
+    assert.equal(
+      (
+        await pool.query('SELECT sanitized_outcome FROM app.outbox_messages WHERE id = $1', [
+          item.id,
+        ])
+      ).rows[0].sanitized_outcome,
+      result.code,
+    )
+    if (result.status !== 'retry')
+      assert(
+        (await maintenanceDelivery.listProblems(100)).some(
+          (entry) => entry.id === item.id && entry.code === result.code,
+        ),
+      )
+  }
+  const diagnostic = intent()
+  await transaction.run(({ outbox }) => outbox.enqueue(diagnostic))
+  await pool.query(
+    "UPDATE app.outbox_messages SET state = 'failed', sanitized_outcome = 'synthetic-private-outcome' WHERE id = $1",
+    [diagnostic.id],
+  )
+  assert.equal(
+    (await maintenanceDelivery.listProblems(100)).find((entry) => entry.id === diagnostic.id)?.code,
+    'unclassified',
+  )
+  await pool.query(
+    "UPDATE app.outbox_messages SET state = 'leased', lease_until_at = clock_timestamp() - interval '1 second' WHERE id = $1",
+    [diagnostic.id],
+  )
+  assert.equal(
+    (await maintenanceDelivery.listProblems(100)).find((entry) => entry.id === diagnostic.id)?.code,
+    'lease_expired',
+  )
+  await pool.query(
+    "UPDATE app.outbox_messages SET state = 'failed', lease_until_at = null WHERE id = $1",
+    [diagnostic.id],
+  )
+  for (const [priorAttempts, baseBackoffMs, expectedDelayMs] of [
+    [2, 1_000, 4_000],
+    [3, 40_000, 60_000],
+  ]) {
+    const backoff = intent()
+    await transaction.run(({ outbox }) => outbox.enqueue(backoff))
+    await pool.query('UPDATE app.outbox_messages SET attempt_count = $2 WHERE id = $1', [
+      backoff.id,
+      priorAttempts,
+    ])
+    const summary = await dispatchOutboxBatch(
+      maintenanceDelivery,
+      {
+        'test.effect': {
+          ...policies['test.effect'],
+          async run() {
+            return 'retry' as const
+          },
+        },
+      },
+      { maxMessages: 1, maxAttempts: 5, baseBackoffMs },
+    )
+    assert.equal(summary.retry, 1)
+    const delay = Number(
+      (
+        await pool.query(
+          'SELECT extract(epoch FROM (available_at - updated_at)) * 1000 AS delay_ms FROM app.outbox_messages WHERE id = $1',
+          [backoff.id],
+        )
+      ).rows[0].delay_ms,
+    )
+    assert(
+      Math.abs(delay - expectedDelayMs) < 1_000,
+      'Exponential backoff or its existing cap changed',
+    )
+    await pool.query(
+      "UPDATE app.outbox_messages SET available_at = clock_timestamp() + interval '1 day' WHERE id = $1",
+      [backoff.id],
+    )
+  }
+  const malformed = intent()
+  await transaction.run(({ outbox }) => outbox.enqueue(malformed))
+  await pool.query('UPDATE app.outbox_messages SET payload = $2::jsonb WHERE id = $1', [
+    malformed.id,
+    JSON.stringify({ rawPayload: 'synthetic-private' }),
+  ])
+  assert.equal(
+    (
+      await dispatchOutboxBatch(
+        maintenanceDelivery,
+        {
+          'test.effect': {
+            ...policies['test.effect'],
+            async run() {
+              throw new Error('Malformed message reached a handler')
+            },
+          },
+        },
+        { maxMessages: 1 },
+      )
+    ).failed,
+    1,
+  )
+  assert.equal(
+    (await maintenanceDelivery.listProblems(100)).find((entry) => entry.id === malformed.id)?.code,
+    'invalid_message',
+  )
+  const badAdapter = intent()
+  await transaction.run(({ outbox }) => outbox.enqueue(badAdapter))
+  await dispatchOutboxBatch(
+    maintenanceDelivery,
+    {
+      // Deliberately violate the handler type: an adapter response is not a dispatcher observation.
+      'test.effect': {
+        ...policies['test.effect'],
+        async run() {
+          return 'unknown_message_type' as 'failed'
+        },
+      },
+    },
+    { maxMessages: 1 },
+  )
+  assert.equal(
+    (await maintenanceDelivery.listProblems(100)).find((entry) => entry.id === badAdapter.id)?.code,
+    'handler_failure',
+  )
   const expiredHead = intent()
   const healthyTail = intent()
   await transaction.run(async ({ outbox }) => {

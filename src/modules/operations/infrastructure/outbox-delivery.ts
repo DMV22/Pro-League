@@ -1,14 +1,20 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
 import type { Database } from '../../../server/db/transaction-types'
 import type { OutboxDeliveryPort } from '../application/outbox-delivery-port'
-import { OutboxFailure } from '../application/outbox-port'
 import { outboxMessages } from './schema'
 import { outboxFailure } from './outbox-repository'
+import {
+  exhaustedAttemptCode,
+  safeDeliveryProblemCode,
+  validateDeliveryResult,
+  validateClaimOptions,
+  validateProblemLimit,
+} from '../application/delivery-policy'
 
 export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
   return {
     async listProblems(limit) {
-      positive(limit, 100)
+      validateProblemLimit(limit)
       try {
         const rows = await database
           .select({
@@ -25,32 +31,16 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
           )
           .orderBy(asc(outboxMessages.updatedAt), asc(outboxMessages.id))
           .limit(limit)
-        const codes = [
-          'delivered',
-          'transient_failure',
-          'handler_timeout',
-          'handler_failure',
-          'unknown_message_type',
-          'invalid_message',
-          'attempt_limit',
-        ]
         return rows.map((row) => ({
           ...row,
-          code:
-            row.state === 'leased'
-              ? 'lease_expired'
-              : row.code && codes.includes(row.code)
-                ? row.code
-                : 'unclassified',
+          code: safeDeliveryProblemCode(row.state, row.code),
         }))
       } catch (error) {
         throw outboxFailure(error)
       }
     },
     async claim(options) {
-      positive(options.limit, 100)
-      positive(options.leaseMs, 600_000)
-      positive(options.maxAttempts, 20)
+      validateClaimOptions(options)
       try {
         return await database.transaction(async (tx) => {
           await tx.execute(sql`set local statement_timeout = '5s'`)
@@ -74,7 +64,7 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
                 .update(outboxMessages)
                 .set({
                   state: 'exhausted',
-                  sanitizedOutcome: 'attempt_limit',
+                  sanitizedOutcome: exhaustedAttemptCode,
                   leaseUntilAt: null,
                   version: sql`${outboxMessages.version} + 1`,
                   updatedAt: sql`clock_timestamp()`,
@@ -118,14 +108,7 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
       }
     },
     async settle(lease, result) {
-      const valid =
-        (result.status === 'succeeded' && result.code === 'delivered') ||
-        (['retry', 'exhausted'].includes(result.status) &&
-          ['transient_failure', 'handler_timeout'].includes(result.code)) ||
-        (result.status === 'failed' &&
-          ['handler_failure', 'unknown_message_type', 'invalid_message'].includes(result.code))
-      if (!valid) throw new OutboxFailure('invalid')
-      if (result.status === 'retry') positive(result.delayMs, 86_400_000)
+      validateDeliveryResult(result)
       try {
         return await database.transaction(async (tx) => {
           await tx.execute(sql`set local statement_timeout = '5s'`)
@@ -173,8 +156,4 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
       }
     },
   }
-}
-
-function positive(value: number, max: number): void {
-  if (!Number.isSafeInteger(value) || value < 1 || value > max) throw new OutboxFailure('invalid')
 }

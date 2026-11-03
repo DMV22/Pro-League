@@ -1,6 +1,13 @@
 import type { DeliveryResult, OutboxDeliveryPort } from './outbox-delivery-port'
-import { OutboxFailure, type OutboxIntent } from './outbox-port'
+import type { OutboxIntent } from './outbox-port'
 import { validateOutbox } from './validate-outbox'
+import {
+  resolveDeliveryResult,
+  resolveDispatchOptions,
+  type DispatchOptions,
+  type HandlerOutcome,
+} from './delivery-policy'
+export type { DispatchOptions } from './delivery-policy'
 
 export type OutboxHandler = Readonly<{
   schemaVersion: number
@@ -8,30 +15,17 @@ export type OutboxHandler = Readonly<{
   /** Must tolerate repeated/concurrent delivery with this stable downstream idempotency key. */
   run(
     input: Readonly<{ intent: OutboxIntent; idempotencyKey: string; signal: AbortSignal }>,
-  ): Promise<'succeeded' | 'retry' | 'failed'>
+  ): Promise<HandlerOutcome>
 }>
 export type OutboxHandlers = Readonly<Record<string, OutboxHandler>>
-export type DispatchOptions = Readonly<{
-  maxMessages?: number
-  maxDurationMs?: number
-  leaseMs?: number
-  maxAttempts?: number
-  handlerTimeoutMs?: number
-  baseBackoffMs?: number
-}>
 
 export async function dispatchOutboxBatch(
   delivery: OutboxDeliveryPort,
   handlers: OutboxHandlers,
   options: DispatchOptions = {},
 ) {
-  const maxMessages = bounded(options.maxMessages ?? 20, 100)
-  const maxDurationMs = bounded(options.maxDurationMs ?? 30_000, 300_000)
-  const leaseMs = bounded(options.leaseMs ?? 30_000, 600_000)
-  const maxAttempts = bounded(options.maxAttempts ?? 5, 20)
-  const baseBackoffMs = bounded(options.baseBackoffMs ?? 1_000, 60_000)
-  const handlerTimeoutMs = bounded(options.handlerTimeoutMs ?? 5_000, 20_000)
-  if (leaseMs < handlerTimeoutMs + 5_000) throw new OutboxFailure('invalid')
+  const policy = resolveDispatchOptions(options)
+  const { maxMessages, maxDurationMs, leaseMs, maxAttempts, handlerTimeoutMs } = policy
   const summary = {
     scanned: 0,
     processed: 0,
@@ -53,7 +47,7 @@ export async function dispatchOutboxBatch(
     let result: DeliveryResult
     const type = (lease.intent as { messageType?: unknown } | null)?.messageType
     if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) {
-      result = { status: 'failed', code: 'unknown_message_type' }
+      result = resolveDeliveryResult({ kind: 'unknown_message_type' }, lease.attemptCount, policy)
     } else {
       let intent: OutboxIntent | undefined
       try {
@@ -61,25 +55,15 @@ export async function dispatchOutboxBatch(
       } catch {
         /* Malformed persisted messages never reach a handler. */
       }
-      if (!intent) result = { status: 'failed', code: 'invalid_message' }
+      if (!intent)
+        result = resolveDeliveryResult({ kind: 'invalid_message' }, lease.attemptCount, policy)
       else {
         const remaining = deadline - performance.now()
         const outcome =
           remaining <= 0
             ? 'timeout'
             : await invokeHandler(handlers[type], intent, Math.min(handlerTimeoutMs, remaining))
-        if (outcome === 'succeeded') result = { status: 'succeeded', code: 'delivered' }
-        else if (outcome === 'retry' || outcome === 'timeout') {
-          const code = outcome === 'timeout' ? 'handler_timeout' : 'transient_failure'
-          result =
-            lease.attemptCount >= maxAttempts
-              ? { status: 'exhausted', code }
-              : {
-                  status: 'retry',
-                  code,
-                  delayMs: Math.min(60_000, baseBackoffMs * 2 ** (lease.attemptCount - 1)),
-                }
-        } else result = { status: 'failed', code: 'handler_failure' }
+        result = resolveDeliveryResult({ kind: 'handler', outcome }, lease.attemptCount, policy)
       }
     }
     summary.processed += 1
@@ -110,9 +94,4 @@ async function invokeHandler(handler: OutboxHandler, intent: OutboxIntent, timeo
   } finally {
     clearTimeout(timer)
   }
-}
-
-function bounded(value: number, max: number): number {
-  if (!Number.isSafeInteger(value) || value < 1 || value > max) throw new OutboxFailure('invalid')
-  return value
 }

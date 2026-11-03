@@ -1,6 +1,7 @@
 import pg from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { dispatchOutboxBatch } from '../../src/modules/operations/application/dispatch-outbox'
+import { resolveDispatchOptions } from '../../src/modules/operations/application/delivery-policy'
 import { OutboxFailure } from '../../src/modules/operations/application/outbox-port'
 import { createOutboxDelivery } from '../../src/modules/operations/infrastructure/outbox-delivery'
 import { runtimeOutboxHandlers } from '../../src/server/outbox-handlers'
@@ -36,17 +37,10 @@ async function main() {
   // Fail before claim: an empty production registry must not drain a future feature's messages.
   if (mode === 'dispatch' && Object.keys(runtimeOutboxHandlers).length === 0)
     throw new OutboxFailure('invalid')
-  const limit = Number(args.get('limit') ?? '20')
-  const durationMs = Number(args.get('duration-ms') ?? '30000')
-  if (
-    !Number.isSafeInteger(limit) ||
-    limit < 1 ||
-    limit > 100 ||
-    !Number.isSafeInteger(durationMs) ||
-    durationMs < 1 ||
-    durationMs > 300_000
-  )
-    throw new OutboxFailure('invalid')
+  const policy = resolveDispatchOptions({
+    maxMessages: args.has('limit') ? Number(args.get('limit')) : undefined,
+    maxDurationMs: args.has('duration-ms') ? Number(args.get('duration-ms')) : undefined,
+  })
   const pool = new pg.Pool({
     connectionString: value,
     max: 1,
@@ -64,11 +58,8 @@ async function main() {
     const delivery = createOutboxDelivery(drizzle({ client }))
     const result =
       mode === 'inspect'
-        ? await delivery.listProblems(limit)
-        : await dispatchOutboxBatch(delivery, runtimeOutboxHandlers, {
-            maxMessages: limit,
-            maxDurationMs: durationMs,
-          })
+        ? await delivery.listProblems(policy.maxMessages)
+        : await dispatchOutboxBatch(delivery, runtimeOutboxHandlers, policy)
     console.info(
       JSON.stringify(result, (_, item: unknown) =>
         typeof item === 'bigint' ? item.toString() : item,

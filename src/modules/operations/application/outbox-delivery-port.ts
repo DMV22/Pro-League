@@ -1,10 +1,12 @@
+import type { ClaimOptions, DeliveryResult } from './delivery-policy'
+export type { ClaimOptions, DeliveryResult } from './delivery-policy'
+
 export type OutboxLease = Readonly<{
   id: string
   version: bigint
   attemptCount: number
   intent: unknown
 }>
-export type ClaimOptions = Readonly<{ limit: number; leaseMs: number; maxAttempts: number }>
 /** Eligible candidates locked by this claim, not physical SQL rows scanned.
  * scannedCount = leases.length + exhaustedCount, at most ClaimOptions.limit.
  * Zero scannedCount means no progress; empty leases alone do not mean that.
@@ -14,14 +16,6 @@ export type OutboxClaimResult = Readonly<{
   scannedCount: number
   exhaustedCount: number
 }>
-export type DeliveryResult =
-  | Readonly<{ status: 'succeeded'; code: 'delivered' }>
-  | Readonly<{ status: 'retry'; code: 'transient_failure' | 'handler_timeout'; delayMs: number }>
-  | Readonly<{ status: 'exhausted'; code: 'transient_failure' | 'handler_timeout' }>
-  | Readonly<{
-      status: 'failed'
-      code: 'handler_failure' | 'unknown_message_type' | 'invalid_message'
-    }>
 
 /** Internal worker interface. A lease is not an HTTP capability or an authorization decision. */
 export interface OutboxDeliveryPort {

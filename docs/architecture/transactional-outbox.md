@@ -74,15 +74,15 @@ persisted data become visible `failed` records, not silently discarded work.
 
 Defaults and hard limits:
 
-| Setting | Default | Maximum / invariant |
-| --- | --- | --- |
-| Eligible candidates per run (`maxMessages`) | 20 | 100; includes maintenance |
-| Run budget | 30 seconds | 5 minutes |
-| Lease | 30 seconds | 10 minutes; at least handler timeout + 5 seconds |
-| Handler timeout | 5 seconds | 20 seconds |
-| Attempts, including recovered claims | 5 | 20 |
-| Retry backoff | 1 second, exponential | capped at 60 seconds |
-| Concurrent handlers per invocation | 1 | 1 |
+| Setting                                     | Default               | Maximum / invariant                              |
+| ------------------------------------------- | --------------------- | ------------------------------------------------ |
+| Eligible candidates per run (`maxMessages`) | 20                    | 100; includes maintenance                        |
+| Run budget                                  | 30 seconds            | 5 minutes                                        |
+| Lease                                       | 30 seconds            | 10 minutes; at least handler timeout + 5 seconds |
+| Handler timeout                             | 5 seconds             | 20 seconds                                       |
+| Attempts, including recovered claims        | 5                     | 20                                               |
+| Retry backoff                               | 1 second, exponential | capped at 60 seconds                             |
+| Concurrent handlers per invocation          | 1                     | 1                                                |
 
 The summary reports `scanned` (all eligible candidates considered), `processed` (claimed
 messages reaching the processing path), and `exhausted` (maintenance exhaustion plus
@@ -114,6 +114,25 @@ solve this crash window. No provider-wide exactly-once claim is made by this fou
 There is no strict per-aggregate delivery ordering across workers. Adapters must also
 respect the intent's aggregate version where applying an older effect could overwrite
 newer state; idempotency alone does not solve out-of-order delivery.
+
+## Delivery policy ownership
+
+Operations owns delivery decisions in
+`src/modules/operations/application/delivery-policy.ts`. One status/code catalog derives
+the `DeliveryResult` type, settlement validation and safe diagnostic projection. The same
+module classifies dispatcher observations, calculates retry/exhaustion and backoff, and
+validates shared defaults and numeric limits for the dispatcher, delivery adapter and CLI.
+Existing port/dispatcher import paths re-export their types for compatibility.
+
+Handler outcomes are distinct from internal observations such as unknown message types:
+an unexpected handler response becomes `handler_failure`, not a trusted internal code.
+Claim maintenance uses `attempt_limit` for diagnostics only; a handler cannot settle with
+that code. Dispatcher backoff is capped at 60 seconds, while the delivery port retains
+its existing maximum explicit retry delay of one day.
+
+PostgreSQL still owns persistence, row locks, fencing and statement timeouts. Credential
+and target-database guards remain in the operator CLI. This refactoring changes neither
+delivery behavior nor deployment activation.
 
 ## Operator invocation and deployment mode
 
@@ -164,6 +183,10 @@ claim, expiry and stale completion, backoff, exhaustion, timeout, fixed error ou
 unknown types, batch limits, and crash-window delivery against a separately connected
 synthetic downstream with unique effect keys. A separate connection can lock the queue
 row while the handler runs, demonstrating the claim transaction has ended.
+
+Policy characterization uses those same interfaces, not private policy helpers: allowed
+and rejected status/code pairs, safe diagnostics, retry delay limits, exponential backoff,
+malformed handler outcomes, numeric bounds and the default 20-candidate run budget.
 
 Only this invocation's synthetic mutable queue rows are removed afterward. Audit History
 is never deleted. Permission fault injection restores the existing grant in `finally`.
