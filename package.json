@@ -40,6 +40,8 @@
     "db:seed-golden": "tsx scripts/db/seed-golden-season.ts",
     "db:verify-golden": "node --conditions=react-server --import tsx scripts/db/verify-golden-season.ts",
     "db:integration": "tsx scripts/db/verify-integration.ts",
+    "outbox:inspect": "node --conditions=react-server --import tsx scripts/operations/outbox.ts --mode=inspect",
+    "outbox:dispatch": "node --conditions=react-server --import tsx scripts/operations/outbox.ts --mode=dispatch",
     "db:verify-ledger": "tsx scripts/db/verify-migration-ledger.ts",
     "db:prepare-upgrade": "tsx scripts/db/prepare-upgrade-rehearsal.ts",
     "db:verify-upgrade": "tsx scripts/db/verify-upgrade-rehearsal.ts",
