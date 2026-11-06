@@ -160,6 +160,23 @@ generic default-empty behavior, explicit accepted-action registration and redact
 unknown failure messages. Existing retry/rollback/race scenarios run through the same
 executor/PostgreSQL seams; no private failure-policy helpers are tested directly.
 
+The test-only `scripts/db/command-executor-fixtures.ts` owns synthetic actors,
+tracked mutable Competition/Outbox rows, dedicated sessions, temporary fault objects,
+and access-state restoration. Named scenarios keep assertions in the verifier and
+stop at the first failure; explicit returned fixture values preserve intentional replay
+dependencies without pretending every scenario is independent.
+Cleanup attempts every registered action in reverse acquisition order, even if another
+cleanup fails. Scenario errors retain their name and original cause; secondary cleanup
+errors are reported together, not substituted for the original assertion.
+Revocation cleanup releases its lock before draining pending work and restoring access.
+Dedicated sessions are destroyed rather than returned with possible role/transaction
+state; notice listeners are removed. Fault objects are registered for cleanup as each
+setup step succeeds. The suite closes its pool even when setup or row cleanup fails.
+A deliberately aborted PostgreSQL scenario verifies rollback, backend termination,
+fault-object removal and preservation of the original error. A one-connection pool also
+verifies cleanup after partial session acquisition times out. Immutable Audit History
+and its referenced Admin Identity remain retained. Integration target guards are unchanged.
+
 No production route, business command, automatic worker or sensitive capability is
 enabled. Full CI, owner merge and post-merge verification remain required before closing
 #127. Authentication/session integration and broader Admin access acceptance remain
