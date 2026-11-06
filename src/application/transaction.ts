@@ -3,6 +3,8 @@ import type { RegistrationRepository } from '../modules/registration/application
 import type { MatchRepository } from '../modules/match/application/repository'
 import type { AuditPort } from '../modules/governance/application/audit-port'
 import type { OutboxPort } from '../modules/operations/application/outbox-port'
+import type { CommandAccessPort } from '../modules/identity-access/application/command-access-port'
+import type { CommandExecutionPort } from '../modules/operations/application/command-execution-port'
 
 export interface TransactionRepositories {
   competition: CompetitionRepository
@@ -10,8 +12,13 @@ export interface TransactionRepositories {
   match: MatchRepository
   audit: AuditPort
   outbox: OutboxPort
+  commandAccess: CommandAccessPort
+  commandExecutions: CommandExecutionPort
 }
 
 export interface TransactionPort {
-  run<T>(command: (repositories: TransactionRepositories) => Promise<T>): Promise<T>
+  run<T>(
+    command: (repositories: TransactionRepositories) => Promise<T>,
+    options?: Readonly<{ bounded: true }>,
+  ): Promise<T>
 }
