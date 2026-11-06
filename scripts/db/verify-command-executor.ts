@@ -106,6 +106,49 @@ try {
     [grantId, identityId],
   )
   const first = request()
+  // Compatibility fixture: pin persisted identity bytes before the policy refactor.
+  const compatibilityId = '019b0000-0000-7000-8000-000000000127'
+  entityIds.push(compatibilityId)
+  const compatibilityInput = {
+    idempotencyKey: 'compat-intent-127',
+    payload: { id: compatibilityId },
+  }
+  assert.deepEqual(await execute(compatibilityInput), {
+    status: 'succeeded',
+    value: { id: compatibilityId, version: '1' },
+  })
+  const compatibilityRow = (
+    await pool.query(
+      'SELECT actor_scope, payload_hash, result_type, result_schema_version, result_payload FROM app.command_executions WHERE idempotency_key = $1 AND actor_scope LIKE $2',
+      [compatibilityInput.idempotencyKey, `%${grantId}%`],
+    )
+  ).rows[0]
+  assert.equal(
+    compatibilityRow.actor_scope,
+    `["admin-v1","${identityId}","${grantId}","test.command"]`,
+  )
+  assert.equal(
+    compatibilityRow.payload_hash,
+    '6d2496c14c7360ae3c7c9d6625eb16c0b96f942212cbdc30c1ca619646de8ab0',
+    'Persisted canonical intent hash changed',
+  )
+  assert.equal(compatibilityRow.result_type, 'test.command')
+  assert.equal(compatibilityRow.result_schema_version, 1)
+  assert.deepEqual(compatibilityRow.result_payload, { id: compatibilityId, version: '1' })
+  await pool.query(
+    "UPDATE app.command_executions SET result_type = 'test.other', state = 'failed' WHERE idempotency_key = $1 AND actor_scope = $2",
+    [compatibilityInput.idempotencyKey, compatibilityRow.actor_scope],
+  )
+  assert.deepEqual(
+    await execute(compatibilityInput),
+    { status: 'conflict', code: 'idempotency_conflict' },
+    'Changed stored intent type is a conflict even when replay state is unusable',
+  )
+  await pool.query(
+    "UPDATE app.command_executions SET result_type = 'test.command', state = 'succeeded' WHERE idempotency_key = $1 AND actor_scope = $2",
+    [compatibilityInput.idempotencyKey, compatibilityRow.actor_scope],
+  )
+  assert.equal((await execute(compatibilityInput)).status, 'succeeded')
   const accepted = { status: 'succeeded', value: { id: first.payload.id, version: '1' } }
   assert.deepEqual(await execute(first), accepted)
   assert.deepEqual(await execute(first), accepted, 'Replay must return the recorded result')
@@ -310,6 +353,75 @@ try {
       .rowCount,
     0,
   )
+  const largestBatch = request()
+  const largestBatchResult = await execute(largestBatch, {
+    ...definition,
+    resultFields: ['id', 'version', ...Array.from({ length: 14 }, (_, index) => `field${index}`)],
+    async run(...args) {
+      const result = await definition.run(...args)
+      return {
+        ...result,
+        outbox: Array.from({ length: 16 }, (_, index) => ({
+          ...result.outbox![0],
+          key: `effect-${index}`,
+        })),
+      }
+    },
+  })
+  assert.equal(largestBatchResult.status, 'succeeded')
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          'SELECT count(DISTINCT id) FROM app.outbox_messages WHERE aggregate_id = $1',
+          [largestBatch.payload.id],
+        )
+      ).rows[0].count,
+    ),
+    16,
+  )
+  for (const mode of [
+    'too_many',
+    'duplicate_key',
+    'invalid_key',
+    'too_many_result_fields',
+  ] as const) {
+    const input = request()
+    const command = {
+      ...definition,
+      resultFields:
+        mode === 'too_many_result_fields'
+          ? ['id', 'version', ...Array.from({ length: 15 }, (_, index) => `field${index}`)]
+          : definition.resultFields,
+      async run(...args: Parameters<typeof definition.run>) {
+        const result = await definition.run(...args)
+        return {
+          ...result,
+          outbox:
+            mode === 'too_many'
+              ? Array.from({ length: 17 }, (_, index) => ({
+                  ...result.outbox![0],
+                  key: `effect-${index}`,
+                }))
+              : mode === 'duplicate_key'
+                ? [result.outbox![0], result.outbox![0]]
+                : mode === 'invalid_key'
+                  ? [{ ...result.outbox![0], key: 'invalid key' }]
+                  : result.outbox,
+        }
+      },
+    }
+    assert.deepEqual(
+      await execute(input, command),
+      { status: 'unavailable', code: 'persistence_unavailable' },
+      `Existing intent limit changed: ${mode}`,
+    )
+    assert.equal(
+      (await pool.query('SELECT id FROM app.competitions WHERE id = $1', [input.payload.id]))
+        .rowCount,
+      0,
+    )
+  }
   // Permission revalidation after waiting for an in-flight revocation (not a timing-only sleep).
   const holder = await pool.connect()
   const observer = await pool.connect()

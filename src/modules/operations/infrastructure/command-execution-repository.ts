@@ -2,12 +2,12 @@ import { and, eq, sql } from 'drizzle-orm'
 import {
   CommandExecutionFailure,
   type CommandExecutionPort,
-  type SafeCommandResult,
 } from '../application/command-execution-port'
 import type { DatabaseTransaction } from '../../../server/db/transaction-types'
 import { commandExecutions } from './schema'
 import { mapDatabaseFailure } from '../../../server/db/failures'
 import { PersistenceFailure } from '../../../shared/application/persistence'
+import { readCommandExecution } from '../application/command-intent'
 
 export function createCommandExecutionRepository(tx: DatabaseTransaction): CommandExecutionPort {
   return {
@@ -38,18 +38,9 @@ export function createCommandExecutionRepository(tx: DatabaseTransaction): Comma
             ),
           )
           .for('update')
-        if (!row) throw new CommandExecutionFailure('unavailable')
-        if (row.payloadHash !== identity.payloadHash || row.resultType !== identity.commandType)
-          throw new CommandExecutionFailure('conflict')
-        // Legacy/pending/failed or unsupported results never trigger a second domain effect.
-        if (row.state !== 'succeeded' || !row.resultSchemaVersion || !row.resultPayload)
-          throw new CommandExecutionFailure('unavailable')
         return {
           kind: 'replay',
-          result: {
-            schemaVersion: row.resultSchemaVersion,
-            value: row.resultPayload as SafeCommandResult,
-          },
+          result: readCommandExecution(identity, row),
         }
       } catch (error) {
         throw executionFailure(error)
