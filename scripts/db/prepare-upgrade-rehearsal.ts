@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 
 import pg from 'pg'
 
@@ -20,6 +21,7 @@ assert.deepEqual(
     '0000_initial_proleague_schema',
     '0001_current_participant_uniqueness',
     '0002_public_projection_revisions',
+    '0003_command_execution_results',
   ],
   'Upgrade rehearsal needs an explicit update for a new release migration',
 )
@@ -50,6 +52,11 @@ try {
     ])
   }
   await seedGoldenSeason(client)
+  await client.query(
+    `INSERT INTO app.command_executions (id, actor_scope, idempotency_key, payload_hash, state, expires_at)
+    VALUES ($1, 'upgrade-fixture', 'legacy-command', 'legacy-hash', 'succeeded', now() + interval '30 days')`,
+    [randomUUID()],
+  )
   await client.query('COMMIT')
   console.info('Previous-release schema and Golden Season fixture prepared in proleague_upgrade_ci')
 } catch (error) {

@@ -3,6 +3,11 @@
 Scope: #125, part of #38. These are contracts and a pure envelope parser, not an
 authorization implementation or a runnable mutation path. ADR-0021 and ADR-0025 remain authoritative.
 
+The subsequent #127 implementation is documented separately in
+[protected-command-executor.md](protected-command-executor.md). The future-executor
+requirements below are the original contract specification; concrete Clerk activation
+is still separate work.
+
 ## Interfaces and ownership
 
 - `src/shared/application/command-context.ts`: server-resolved Admin/System actor and correlation context.
@@ -85,14 +90,14 @@ can defeat static checks. Only the future server authorization and transactional
 
 ## Outcomes and retry semantics
 
-| Status | Meaning | Retry policy |
-| --- | --- | --- |
-| `succeeded` | Accepted result; `value` is the command's safe output | Same intent/key can replay after a fresh authorization check |
-| `unauthenticated` | No completed verified session | Sign in; no automatic command retry |
-| `forbidden` | Current local access denied | No automatic retry or fallback permission |
-| `invalid` | Envelope or owning-command validation failed | Correct input; changed intent needs a new key |
-| `conflict` | Stale version, reused key with another intent or domain conflict | Refresh/review; never silently overwrite |
-| `unavailable` | Authorization, Audit, persistence or unexpected failure | Fail closed; no blanket automatic retry |
+| Status            | Meaning                                                          | Retry policy                                                 |
+| ----------------- | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| `succeeded`       | Accepted result; `value` is the command's safe output            | Same intent/key can replay after a fresh authorization check |
+| `unauthenticated` | No completed verified session                                    | Sign in; no automatic command retry                          |
+| `forbidden`       | Current local access denied                                      | No automatic retry or fallback permission                    |
+| `invalid`         | Envelope or owning-command validation failed                     | Correct input; changed intent needs a new key                |
+| `conflict`        | Stale version, reused key with another intent or domain conflict | Refresh/review; never silently overwrite                     |
+| `unavailable`     | Authorization, Audit, persistence or unexpected failure          | Fail closed; no blanket automatic retry                      |
 
 Public failure codes contain no raw `Error`, SQLSTATE, provider response, stack or credentials.
 Success outputs must also be explicitly selected safe view models, not ORM/provider records.

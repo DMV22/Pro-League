@@ -22,6 +22,13 @@
       "when": 1791837025352,
       "tag": "0002_public_projection_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793666446791,
+      "tag": "0003_command_execution_results",
+      "breakpoints": true
     }
   ]
 }

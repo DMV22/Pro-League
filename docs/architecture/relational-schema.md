@@ -15,7 +15,7 @@ The database uses one PostgreSQL application schema named `app`. Drizzle schema 
 - Instants are stored as UTC `timestamptz`. Birth and effective calendar dates use `date`. A partially known Scheduled Kickoff uses nullable local `date` and `time`, an IANA timezone, and a `timestamptz` only when both components are known.
 - Roots store current pointers for efficient reads. Revisions, rulings, transitions, activations, decisions, and final snapshots are append-only.
 - There is no generic `deleted_at`. Archive, withdraw, revoke, supersede, restrict, cancel, abandon, and remove are distinct domain states. Physical deletion is permitted only by the deletion matrix.
-- Core identities, states, relationships, ordering, and progression are normalized. JSONB is limited to versioned Article content, redacted Audit changes, typed integration payloads, calculation traces, and format-template blueprints.
+- Core identities, states, relationships, ordering, and progression are normalized. JSONB is limited to versioned Article content, redacted Audit changes, typed integration payloads, bounded versioned safe command results, calculation traces, and format-template blueprints.
 - Cross-module foreign keys use `ON DELETE RESTRICT` or `NO ACTION`; cross-module cascading deletion is prohibited.
 - Every mutable aggregate is protected by optimistic concurrency. Important commands additionally use the command-execution registry.
 - Public URLs never expose sequential identifiers. Article, Competition, Team, and Season slugs are retained in append-only per-entity slug tables so a former slug cannot be reused.
@@ -311,7 +311,7 @@ The application role can insert and select Audit History but cannot update, dele
 | Table | Class | Key contents and rules |
 | --- | --- | --- |
 | `outbox_messages` | Operational queue | Typed/schema-versioned payload, aggregate version, correlation/causation, availability, lease, attempts and outcome |
-| `command_executions` | Operational idempotency | Actor scope, key, payload hash, safe result reference, state and expiry |
+| `command_executions` | Operational idempotency | Actor scope, key, payload hash, legacy result reference, bounded safe result payload/schema version, state and expiry |
 | `scheduled_jobs` | Operational queue | Deterministic logical job key, target/version, due time, lease, state and retries |
 | `job_runs` | Operational history | One attempt, timing, sanitized error and outcome |
 | `cache_invalidation_intents` | Operational state | Semantic target, committed version, ordinary/urgent level and confirmation state |

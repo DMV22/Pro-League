@@ -8,20 +8,29 @@ import type { OutboxPolicies } from '../../modules/operations/application/outbox
 import type { TransactionPort } from '../../application/transaction'
 import { mapDatabaseFailure } from './failures'
 import type { Database } from './transaction-types'
+import { sql } from 'drizzle-orm'
+import { createCommandAccess } from '../../modules/identity-access/infrastructure/command-access'
+import { createCommandExecutionRepository } from '../../modules/operations/infrastructure/command-execution-repository'
 
 export function createTransactionAdapter(
   database: Database,
   options: { auditPolicies?: AuditPolicies; outboxPolicies?: OutboxPolicies } = {},
 ): TransactionPort {
   return {
-    async run(command) {
+    async run(command, runOptions) {
       try {
         return await database.transaction(async (tx) => {
+          if (runOptions?.bounded) {
+            await tx.execute(sql`set local lock_timeout = '2s'`)
+            await tx.execute(sql`set local statement_timeout = '5s'`)
+          }
           const audit = createAuditRepository(tx, options.auditPolicies ?? {})
           const outbox = createOutboxRepository(tx, options.outboxPolicies ?? {})
           let auditFailure: unknown
           let outboxFailure: unknown
           const result = await command({
+            commandAccess: createCommandAccess(tx),
+            commandExecutions: createCommandExecutionRepository(tx),
             competition: createCompetitionRepository(tx),
             registration: createRegistrationRepository(tx),
             match: createMatchRepository(tx),

@@ -67,12 +67,18 @@ export const commandExecutions = appSchema.table(
     payloadHash: text('payload_hash').notNull(),
     resultType: text('result_type'),
     resultId: uuid('result_id'),
+    resultSchemaVersion: integer('result_schema_version'),
+    resultPayload: jsonb('result_payload'),
     state: text('state').notNull().default('pending'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
   (table) => [
     unique('command_executions_scope_key_uq').on(table.actorScope, table.idempotencyKey),
     check('command_executions_state_ck', sql`${table.state} in ('pending', 'succeeded', 'failed')`),
+    check(
+      'command_executions_result_ck',
+      sql`(${table.resultSchemaVersion} is null and ${table.resultPayload} is null) or (${table.resultSchemaVersion} is not null and ${table.resultSchemaVersion} > 0 and ${table.resultPayload} is not null and jsonb_typeof(${table.resultPayload}) = 'object' and octet_length(${table.resultPayload}::text) <= 8192)`,
+    ),
   ],
 )
 

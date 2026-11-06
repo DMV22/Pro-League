@@ -19,6 +19,14 @@ try {
     'SELECT hash, created_at::text FROM app.__drizzle_migrations ORDER BY created_at, id',
   )
   assertMigrationLedger(readMigrationManifest(), ledger.rows)
+  const legacy = await client.query(
+    "SELECT state, result_schema_version, result_payload FROM app.command_executions WHERE actor_scope = 'upgrade-fixture' AND idempotency_key = 'legacy-command'",
+  )
+  assert.deepEqual(
+    legacy.rows,
+    [{ state: 'succeeded', result_schema_version: null, result_payload: null }],
+    'Upgrade must preserve legacy outcome references without fabricating a replay payload',
+  )
   const result = await client.query<{
     stage_current: string
     stage_mismatches: string

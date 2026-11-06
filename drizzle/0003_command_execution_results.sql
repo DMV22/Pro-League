@@ -1,0 +1,3 @@
+ALTER TABLE "app"."command_executions" ADD COLUMN "result_schema_version" integer;--> statement-breakpoint
+ALTER TABLE "app"."command_executions" ADD COLUMN "result_payload" jsonb;--> statement-breakpoint
+ALTER TABLE "app"."command_executions" ADD CONSTRAINT "command_executions_result_ck" CHECK (("app"."command_executions"."result_schema_version" is null and "app"."command_executions"."result_payload" is null) or ("app"."command_executions"."result_schema_version" is not null and "app"."command_executions"."result_schema_version" > 0 and "app"."command_executions"."result_payload" is not null and jsonb_typeof("app"."command_executions"."result_payload") = 'object' and octet_length("app"."command_executions"."result_payload"::text) <= 8192));

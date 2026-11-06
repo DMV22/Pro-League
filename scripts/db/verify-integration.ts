@@ -7,6 +7,7 @@ import pg, { type PoolClient } from 'pg'
 import { createTransactionAdapter } from '../../src/server/db/transaction'
 import { assertIntegrationTarget, type IntegrationTarget } from './integration-target'
 import { loadProjectEnv } from './load-env'
+import { readMigrationManifest } from './migration-ledger'
 
 loadProjectEnv()
 
@@ -253,7 +254,11 @@ try {
   const ledger = await pool.query<{ count: string }>(
     'SELECT count(*) FROM app.__drizzle_migrations',
   )
-  assert.equal(Number(ledger.rows[0]?.count), 3, 'Apply all three reviewed migrations first')
+  assert.equal(
+    Number(ledger.rows[0]?.count),
+    readMigrationManifest().length,
+    'Apply all reviewed migrations first',
+  )
   const data = await pool.query<{ total: string }>(
     `SELECT (SELECT count(*) FROM app.competitions) +
             (SELECT count(*) FROM app.scheduled_jobs) +
@@ -268,6 +273,10 @@ try {
   runExisting('scripts/db/verify-public-cache.ts')
   runExisting('scripts/db/verify-audit.ts', [`--target=${target}`, `--confirm-db=${confirmation}`])
   runExisting('scripts/db/verify-outbox.ts', [`--target=${target}`, `--confirm-db=${confirmation}`])
+  runExisting('scripts/db/verify-command-executor.ts', [
+    `--target=${target}`,
+    `--confirm-db=${confirmation}`,
+  ])
   await verifyRoleAndRollback()
   await verifyQueueClaims()
   await verifyParentBeforeChildLock()
