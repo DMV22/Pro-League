@@ -25,6 +25,22 @@ writers must respect this order. A revocation that commits first prevents the co
 a command holding authorization locks commits before a waiting revocation can complete.
 This is serialization, not cancellation of an already committed decision.
 
+## Operations-owned intent policy
+
+`src/modules/operations/application/command-intent.ts` is the single owner of command
+identity and replay rules. `prepareCommandIntent()` prepares the canonical hash before
+locks are taken, then supplies identity construction, safe replay and accepted-result /
+Outbox projection. `readCommandExecution()` interprets the locked persisted row without
+owning SQL or row locks. Metadata validation and UUIDv7 execution/effect identity rules
+are housed in the same module; canonical encoding and safe-result helpers are private.
+
+This replaces the smaller `command-values.ts` module and removes those decisions from
+the executor and PostgreSQL adapter. The existing `executeAdminCommand`, `CommandExecutionPort`
+and transaction interfaces are unchanged. Scope/hash bytes, result schema, ID derivation,
+limits, failure classification and migration history remain unchanged. Authorization
+stays with Identity/Access; generic failure composition and fixture organization are
+not part of this refactoring.
+
 ## One accepted command
 
 1. Snapshot input before authentication yields; verify the session and validate the
@@ -114,6 +130,11 @@ lock races, real `app_runtime` execution, Audit/Outbox rollback, safe output rej
 legacy results and injected serialization/deadlock/non-transient SQLSTATE behavior.
 Synthetic triggers/sequences are invocation-owned and removed afterward; immutable
 Audit History and its referenced synthetic identities are never deleted.
+
+Compatibility characterization also pins a known persisted canonical hash and exact
+scope encoding, checks changed stored intent type before unusable replay state, and
+exercises the existing effect-key/result-field budgets through the executor. No tests
+call private policy helpers.
 
 No production route, business command, automatic worker or sensitive capability is
 enabled. Full CI, owner merge and post-merge verification remain required before closing
