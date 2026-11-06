@@ -92,11 +92,29 @@ exception, SQLSTATE or provider text.
 If this audit cannot commit, the result is `audit_unavailable`, not a claim that logging
 succeeded. No negative outcome commits partial domain work or a success execution row.
 
-Trusted composition must explicitly register the `admin.command_attempt` Audit policy
-with `requireReason: true`, empty `changeFields`, and no reference requirement, plus each
-accepted command's own Audit policy and required Outbox policies. Defaults remain empty
-and deny-by-default. Commands with required reasons/references must supply accepted
-evidence; rejected-attempt evidence uses the separate fixed policy.
+`src/application/commands/command-failure.ts` owns the failure-Audit action and policy,
+safe outcome classification, transient retry decisions and separate failure recording.
+The executor delegates these decisions rather than maintaining another action name,
+error-family list or retry budget. `CommandConflict` remains re-exported from the
+executor's existing import path. Module-specific persistence interpretation stays in
+the adapters: an Operations storage constraint is still an unavailable operation, not
+a domain conflict.
+
+Trusted server composition can explicitly opt into
+`createProtectedCommandTransaction()` from `src/server/commands/protected-command.ts`.
+This server-only factory installs the reserved `admin.command_attempt` Audit policy
+with `requireReason: true`, empty `changeFields`, and no reference requirement.
+A conflicting caller policy is rejected synchronously before any command transaction;
+an equivalent supplied policy is accepted but replaced by the canonical immutable
+policy. Later mutation of the supplied registry/policy cannot weaken this reserved entry.
+The reserved action is for failure evidence, not an accepted business-command type.
+
+Accepted business-command Audit policies and required Outbox policies remain explicit.
+The generic `createTransactionAdapter()` is unchanged: its registries remain empty and
+deny-by-default, and existing callers can still supply their own explicit composition.
+Commands with required reasons/references must supply accepted evidence; rejected-attempt
+evidence uses the separate fixed policy. This opt-in factory adds no route, Clerk adapter,
+new database permission or runtime activation.
 
 Only positively classified PostgreSQL serialization/deadlock failures (`40001`, `40P01`,
 including those mapped through Audit/Outbox) permit automatic retry: three total attempts,
@@ -135,6 +153,12 @@ Compatibility characterization also pins a known persisted canonical hash and ex
 scope encoding, checks changed stored intent type before unusable replay state, and
 exercises the existing effect-key/result-field budgets through the executor. No tests
 call private policy helpers.
+
+Protected composition scenarios additionally verify automatic failure evidence,
+conflicting reserved-policy rejection, immunity to caller configuration mutation,
+generic default-empty behavior, explicit accepted-action registration and redaction of
+unknown failure messages. Existing retry/rollback/race scenarios run through the same
+executor/PostgreSQL seams; no private failure-policy helpers are tested directly.
 
 No production route, business command, automatic worker or sensitive capability is
 enabled. Full CI, owner merge and post-merge verification remain required before closing
