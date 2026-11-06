@@ -8,6 +8,7 @@ import {
   type AdminCommandDefinition,
 } from '../../src/application/commands/execute-admin-command'
 import { createTransactionAdapter } from '../../src/server/db/transaction'
+import { createProtectedCommandTransaction } from '../../src/server/commands/protected-command'
 import { assertIntegrationTarget } from './integration-target'
 import { loadProjectEnv } from './load-env'
 
@@ -27,12 +28,11 @@ const identityId = randomUUID(),
   grantId = randomUUID(),
   externalId = randomUUID()
 const subject = `synthetic-${randomUUID()}`
-const transaction = createTransactionAdapter(database, {
+const transaction = createProtectedCommandTransaction(database, {
   auditPolicies: {
     'test.command': { requireReason: false, changeFields: [] },
     'test.command_other': { requireReason: false, changeFields: [] },
     'test.rename': { requireReason: false, changeFields: [] },
-    'admin.command_attempt': { requireReason: true, changeFields: [] },
   },
   outboxPolicies: { 'test.command_effect': { schemaVersion: 1, payloadFields: ['entityId'] } },
 })
@@ -106,6 +106,137 @@ try {
     [grantId, identityId],
   )
   const first = request()
+  const protectedTransaction = createProtectedCommandTransaction(database)
+  for (const policy of [
+    { requireReason: false, changeFields: [] },
+    { requireReason: true, changeFields: ['unsafeField'] },
+    { requireReason: true, requireReference: true, changeFields: [] },
+  ])
+    assert.throws(
+      () =>
+        createProtectedCommandTransaction(database, {
+          auditPolicies: { 'admin.command_attempt': policy },
+        }),
+      /Reserved command failure Audit policy/,
+      'Conflicting reserved failure policy must fail during trusted composition',
+    )
+  const protectedCorrelation = `protected-default-${randomUUID()}`
+  assert.deepEqual(
+    await executeAdminCommand(
+      { session, transaction: protectedTransaction },
+      definition,
+      { idempotencyKey: 'invalid-protected-request', payload: null },
+      { correlationKey: protectedCorrelation },
+    ),
+    { status: 'invalid', issues: [{ field: 'payload', code: 'invalid_format' }] },
+  )
+  assert.deepEqual(
+    (
+      await pool.query(
+        'SELECT action, outcome, reason FROM app.audit_events WHERE correlation_key = $1',
+        [protectedCorrelation],
+      )
+    ).rows,
+    [{ action: 'admin.command_attempt', outcome: 'failed', reason: 'test.command:invalid' }],
+    'Protected composition must supply mandatory failure evidence without manual policy registration',
+  )
+  const suppliedPolicy = {
+    requireReason: true,
+    requireReference: false,
+    changeFields: [] as string[],
+  }
+  const suppliedPolicies = { 'admin.command_attempt': suppliedPolicy }
+  const protectedSnapshot = createProtectedCommandTransaction(database, {
+    auditPolicies: suppliedPolicies,
+  })
+  suppliedPolicy.requireReason = false
+  suppliedPolicy.requireReference = true
+  suppliedPolicy.changeFields.push('rawPayload')
+  suppliedPolicies['admin.command_attempt'] = {
+    requireReason: false,
+    requireReference: true,
+    changeFields: ['privateContent'],
+  }
+  const snapshotCorrelation = `protected-snapshot-${randomUUID()}`
+  assert.deepEqual(
+    await executeAdminCommand(
+      { session, transaction: protectedSnapshot },
+      definition,
+      { idempotencyKey: 'invalid-protected-snapshot', payload: null },
+      { correlationKey: snapshotCorrelation },
+    ),
+    { status: 'invalid', issues: [{ field: 'payload', code: 'invalid_format' }] },
+    'Caller mutation cannot weaken the reserved protected policy',
+  )
+  assert.equal(
+    (
+      await pool.query('SELECT id FROM app.audit_events WHERE correlation_key = $1', [
+        snapshotCorrelation,
+      ])
+    ).rowCount,
+    1,
+  )
+  const genericCorrelation = `generic-empty-${randomUUID()}`
+  assert.deepEqual(
+    await executeAdminCommand(
+      { session, transaction: createTransactionAdapter(database) },
+      definition,
+      { idempotencyKey: 'invalid-generic-request', payload: null },
+      { correlationKey: genericCorrelation },
+    ),
+    { status: 'unavailable', code: 'audit_unavailable' },
+  )
+  assert.equal(
+    (
+      await pool.query('SELECT id FROM app.audit_events WHERE correlation_key = $1', [
+        genericCorrelation,
+      ])
+    ).rowCount,
+    0,
+    'Generic transaction registries must remain empty by default',
+  )
+  const unregistered = request()
+  assert.deepEqual(
+    await executeAdminCommand(
+      { session, transaction: protectedTransaction },
+      definition,
+      unregistered,
+      { correlationKey: `unregistered-${randomUUID()}` },
+    ),
+    { status: 'unavailable', code: 'audit_unavailable' },
+  )
+  assert.equal(
+    (await pool.query('SELECT id FROM app.competitions WHERE id = $1', [unregistered.payload.id]))
+      .rowCount,
+    0,
+    'Failure-Audit registration does not enable accepted business actions',
+  )
+  const unexpectedCorrelation = `unexpected-${randomUUID()}`
+  const unexpectedInput = request()
+  assert.deepEqual(
+    await executeAdminCommand(
+      { session, transaction },
+      {
+        ...definition,
+        async run() {
+          throw new Error('synthetic-private-provider-message')
+        },
+      },
+      unexpectedInput,
+      { correlationKey: unexpectedCorrelation },
+    ),
+    { status: 'unavailable', code: 'unexpected_failure' },
+  )
+  const unexpectedEvidence = (
+    await pool.query(
+      'SELECT action, outcome, reason FROM app.audit_events WHERE correlation_key = $1',
+      [unexpectedCorrelation],
+    )
+  ).rows
+  assert.deepEqual(unexpectedEvidence, [
+    { action: 'admin.command_attempt', outcome: 'failed', reason: 'test.command:unavailable' },
+  ])
+  assert(!JSON.stringify(unexpectedEvidence).includes('synthetic-private-provider-message'))
   // Compatibility fixture: pin persisted identity bytes before the policy refactor.
   const compatibilityId = '019b0000-0000-7000-8000-000000000127'
   entityIds.push(compatibilityId)
@@ -289,8 +420,7 @@ try {
     'Replay requires current access',
   )
   await pool.query("UPDATE app.admin_access_grants SET state = 'active' WHERE id = $1", [grantId])
-  const unavailableAudit = createTransactionAdapter(database, {
-    auditPolicies: { 'admin.command_attempt': { requireReason: true, changeFields: [] } },
+  const unavailableAudit = createProtectedCommandTransaction(database, {
     outboxPolicies: { 'test.command_effect': { schemaVersion: 1, payloadFields: ['entityId'] } },
   })
   const rejected = request()
@@ -306,10 +436,9 @@ try {
     0,
   )
   const failedOutbox = request()
-  const noOutboxPolicy = createTransactionAdapter(database, {
+  const noOutboxPolicy = createProtectedCommandTransaction(database, {
     auditPolicies: {
       'test.command': { requireReason: false, changeFields: [] },
-      'admin.command_attempt': { requireReason: true, changeFields: [] },
     },
   })
   assert.deepEqual(
@@ -531,13 +660,17 @@ try {
   const runtimeClient = await pool.connect()
   try {
     await runtimeClient.query('SET ROLE app_runtime')
-    const runtimeTransaction = createTransactionAdapter(drizzle({ client: runtimeClient }), {
-      auditPolicies: {
-        'test.command': { requireReason: false, changeFields: [] },
-        'admin.command_attempt': { requireReason: true, changeFields: [] },
+    const runtimeTransaction = createProtectedCommandTransaction(
+      drizzle({ client: runtimeClient }),
+      {
+        auditPolicies: {
+          'test.command': { requireReason: false, changeFields: [] },
+        },
+        outboxPolicies: {
+          'test.command_effect': { schemaVersion: 1, payloadFields: ['entityId'] },
+        },
       },
-      outboxPolicies: { 'test.command_effect': { schemaVersion: 1, payloadFields: ['entityId'] } },
-    })
+    )
     const runtimeInput = request()
     assert.equal(
       (
@@ -598,10 +731,9 @@ try {
     }
     retryClient.on('notice', captureNotice)
     try {
-      const retryTransaction = createTransactionAdapter(drizzle({ client: retryClient }), {
+      const retryTransaction = createProtectedCommandTransaction(drizzle({ client: retryClient }), {
         auditPolicies: {
           'test.command': { requireReason: false, changeFields: [] },
-          'admin.command_attempt': { requireReason: true, changeFields: [] },
         },
         outboxPolicies: {
           'test.command_effect': { schemaVersion: 1, payloadFields: ['entityId'] },

@@ -1,9 +1,5 @@
 import type { AdminSessionPort } from '../../modules/identity-access/application/command-access-port'
-import {
-  AuditFailure,
-  type AuditActor,
-  type AuditEventDraft,
-} from '../../modules/governance/application/audit-port'
+import type { AuditActor, AuditEventDraft } from '../../modules/governance/application/audit-port'
 import type { SafeCommandResult } from '../../modules/operations/application/command-execution-port'
 import type { CommandContext, AdminActor } from '../../shared/application/command-context'
 import type { TransactionPort, TransactionRepositories } from '../transaction'
@@ -17,9 +13,8 @@ import {
   type CommandEffect,
   type CommandIntentRules,
 } from '../../modules/operations/application/command-intent'
-import { CommandExecutionFailure } from '../../modules/operations/application/command-execution-port'
-import { PersistenceFailure } from '../../shared/application/persistence'
-import { OutboxFailure } from '../../modules/operations/application/outbox-port'
+import { commandFailurePolicy, RejectedCommand, type RejectedOutcome } from './command-failure'
+export { CommandConflict } from './command-failure'
 
 export type AdminCommandDefinition<Input> = CommandIntentRules &
   Readonly<{
@@ -42,19 +37,6 @@ export type AdminCommandDependencies = Readonly<{
   transaction: TransactionPort
 }>
 
-/** Owning commands explicitly distinguish version conflicts from other domain conflicts. */
-export class CommandConflict extends Error {
-  constructor(readonly conflictCode: 'stale_version' | 'domain_conflict') {
-    super(conflictCode)
-  }
-}
-type RejectedOutcome = Exclude<CommandOutcome<SafeCommandResult>, { status: 'succeeded' }>
-class RejectedCommand extends Error {
-  constructor(readonly outcome: RejectedOutcome) {
-    super(outcome.status)
-  }
-}
-
 export async function executeAdminCommand<Input>(
   dependencies: AdminCommandDependencies,
   definition: AdminCommandDefinition<Input>,
@@ -70,31 +52,12 @@ export async function executeAdminCommand<Input>(
   let intent: ReturnType<typeof prepareCommandIntent>
   let pinnedScope: string | undefined
   let pinnedSubject: string | undefined
-  const reject = async (outcome: RejectedOutcome): Promise<CommandOutcome<SafeCommandResult>> => {
-    try {
-      // run() has already rolled back; failure evidence uses a new transaction.
-      await dependencies.transaction.run(
-        ({ audit }) =>
-          audit.append({
-            id: createCommandExecutionId(),
-            actor: auditActor,
-            action: 'admin.command_attempt',
-            outcome: ['forbidden', 'unauthenticated'].includes(outcome.status)
-              ? 'denied'
-              : 'failed',
-            source: 'admin',
-            correlationKey,
-            commandKey,
-            targets: [],
-            reason: `${attemptType}:${outcome.status}`,
-          }),
-        { bounded: true },
-      )
-      return outcome
-    } catch {
-      return { status: 'unavailable', code: 'audit_unavailable' }
-    }
-  }
+  const reject = (outcome: RejectedOutcome) =>
+    commandFailurePolicy.record(
+      dependencies.transaction,
+      { actor: auditActor, commandType: attemptType, correlationKey, commandKey },
+      outcome,
+    )
   // Snapshot before authentication yields; transport adapters still enforce body-size limits.
   let inputSnapshot: unknown
   let snapshotFailed = false
@@ -127,9 +90,9 @@ export async function executeAdminCommand<Input>(
     request = structuredClone({ ...envelope.value, payload: parsed.value })
     intent = prepareCommandIntent(definition, request)
   } catch (error) {
-    return reject(outcomeOf(error))
+    return reject(commandFailurePolicy.classify(error))
   }
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < commandFailurePolicy.maximumAttempts; attempt++) {
     let session
     try {
       session = attempt === 0 ? initialSession : await dependencies.session.verify()
@@ -193,38 +156,13 @@ export async function executeAdminCommand<Input>(
         { bounded: true },
       )
     } catch (error) {
-      if (
-        attempt < 2 &&
-        (error instanceof PersistenceFailure ||
-          error instanceof AuditFailure ||
-          error instanceof OutboxFailure) &&
-        error.kind === 'retryable'
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)))
+      const delay = commandFailurePolicy.retryDelay(error, attempt)
+      if (delay !== undefined) {
+        await new Promise((resolve) => setTimeout(resolve, delay))
         continue
       }
-      return reject(outcomeOf(error))
+      return reject(commandFailurePolicy.classify(error))
     }
   }
   return reject({ status: 'unavailable', code: 'persistence_unavailable' })
-}
-
-function outcomeOf(error: unknown): RejectedOutcome {
-  if (error instanceof RejectedCommand) return error.outcome
-  if (error instanceof CommandConflict) return { status: 'conflict', code: error.conflictCode }
-  if (error instanceof CommandExecutionFailure && error.kind === 'conflict')
-    return { status: 'conflict', code: 'idempotency_conflict' }
-  if (error instanceof AuditFailure) return { status: 'unavailable', code: 'audit_unavailable' }
-  if (
-    error instanceof PersistenceFailure &&
-    ['conflict', 'reference', 'constraint'].includes(error.kind)
-  )
-    return { status: 'conflict', code: 'domain_conflict' }
-  if (
-    error instanceof PersistenceFailure ||
-    error instanceof OutboxFailure ||
-    error instanceof CommandExecutionFailure
-  )
-    return { status: 'unavailable', code: 'persistence_unavailable' }
-  return { status: 'unavailable', code: 'unexpected_failure' }
 }
