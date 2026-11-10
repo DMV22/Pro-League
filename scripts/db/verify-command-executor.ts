@@ -41,7 +41,11 @@ await withExecutorFixtures(pool, async ({ request, actor }) => {
   })
   const session = {
     async verify() {
-      return { subject, sessionId: 'synthetic-completed-session' }
+      return {
+        subject,
+        sessionId: 'synthetic-completed-session',
+        startedAt: Date.parse('2026-01-01'),
+      }
     },
   }
   const definition: AdminCommandDefinition<{ id: string }> = {
@@ -403,7 +407,11 @@ await withExecutorFixtures(pool, async ({ request, actor }) => {
             transaction,
             session: {
               async verify() {
-                return { subject: secondSubject, sessionId: 'synthetic-other-session' }
+                return {
+                  subject: secondSubject,
+                  sessionId: 'synthetic-other-session',
+                  startedAt: Date.parse('2026-01-01'),
+                }
               },
             },
           },
@@ -870,7 +878,11 @@ await withExecutorFixtures(pool, async ({ request, actor }) => {
             session: {
               async verify() {
                 return ++sessionChecks === 1
-                  ? { subject, sessionId: 'synthetic-before-expiry' }
+                  ? {
+                      subject,
+                      sessionId: 'synthetic-before-expiry',
+                      startedAt: Date.parse('2026-01-01'),
+                    }
                   : null
               },
             },
@@ -892,6 +904,7 @@ await withExecutorFixtures(pool, async ({ request, actor }) => {
                 return {
                   subject: ++actorChecks === 1 ? subject : secondSubject,
                   sessionId: 'synthetic-changing-session',
+                  startedAt: Date.parse('2026-01-01'),
                 }
               },
             },
