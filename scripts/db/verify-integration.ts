@@ -277,6 +277,10 @@ try {
     `--target=${target}`,
     `--confirm-db=${confirmation}`,
   ])
+  runExisting('scripts/db/verify-admin-access.ts', [
+    `--target=${target}`,
+    `--confirm-db=${confirmation}`,
+  ])
   await verifyRoleAndRollback()
   await verifyQueueClaims()
   await verifyParentBeforeChildLock()

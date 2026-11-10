@@ -177,7 +177,10 @@ fault-object removal and preservation of the original error. A one-connection po
 verifies cleanup after partial session acquisition times out. Immutable Audit History
 and its referenced Admin Identity remain retained. Integration target guards are unchanged.
 
-No production route, business command, automatic worker or sensitive capability is
-enabled. Full CI, owner merge and post-merge verification remain required before closing
-#127. Authentication/session integration and broader Admin access acceptance remain
-subsequent M4 work, not implied by the synthetic session adapter.
+No business mutation route, automatic worker or sensitive capability is enabled.
+The #129 integration adds an opt-in Clerk session adapter and private access-status
+entry points, not a public synthetic command. Verified session creation time is now
+part of the session contract; restoration and local session-denial predicates apply
+to command execution and replay as well as private reads. See
+[Clerk authentication](../operations/clerk-authentication.md) for activation and remaining
+acceptance gates. #127 is completed; #129 provider acceptance is separate work.

@@ -11,11 +11,17 @@ test('renders the public Portal shell and supports its primary navigation', asyn
   await expect(page.getByRole('heading', { level: 2, name: 'Змагання' })).toBeVisible()
 })
 
-test('renders the Admin shell as a non-indexable area', async ({ page }) => {
+test('keeps unconfigured Admin closed and non-indexable', async ({ page }) => {
   await page.goto('/admin')
 
   await expect(page).toHaveTitle('Адміністрування | ProLeague')
-  await expect(page.getByRole('heading', { level: 1, name: 'Керування порталом' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Доступ до адміністрування' }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Перевірка доступу зараз недоступна.', { exact: false }),
+  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Керування порталом' })).toHaveCount(0)
   await expect(page.getByRole('navigation', { name: 'Навігація адміністратора' })).toBeVisible()
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     'content',
