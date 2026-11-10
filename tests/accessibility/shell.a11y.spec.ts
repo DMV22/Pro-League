@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 
 const routes = [
   { path: '/', heading: 'Змагання, які об’єднують громади' },
-  { path: '/admin', heading: 'Керування порталом' },
+  { path: '/admin', heading: 'Доступ до адміністрування' },
   { path: '/missing-page', heading: 'Такої сторінки немає' },
 ] as const
 
