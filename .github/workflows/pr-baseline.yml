@@ -194,6 +194,13 @@ jobs:
           DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_public_cache_ci
           PUBLIC_CACHE_BROWSER_FIXTURE: '1'
         run: pnpm exec playwright test tests/e2e/public-cache.spec.ts --project=chromium --project=chromium-mobile --workers=1
+      - name: Verify post-commit cache invalidation through the Next runtime
+        # Ordinary cache dispatch uses only generated local test credentials, not Clerk/Render secrets.
+        if: needs.changes.outputs.runtime == 'true'
+        env:
+          DATABASE_URL: postgresql://proleague:ci-only-postgres@127.0.0.1:5435/proleague_public_cache_ci
+          CACHE_INVALIDATION_BROWSER_FIXTURE: '1'
+        run: pnpm exec playwright test tests/e2e/cache-invalidation.spec.ts --project=chromium --project=chromium-mobile --workers=1
       - name: Verify Preview isolation before database access
         if: needs.changes.outputs.runtime == 'true'
         env:
