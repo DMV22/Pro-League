@@ -27,6 +27,7 @@ export function createPublicProjectionSnapshotQuery(database: Pick<Database, 'tr
             if (
               probe.kind !== 'found' ||
               probe.state.revision !== expected.revision ||
+              probe.state.cacheGeneration !== expected.cacheGeneration ||
               probe.state.key !== expected.key ||
               probe.state.seasonDate !== expected.seasonDate
             )

@@ -39,7 +39,11 @@ async function CompetitionList() {
   if (competitions.length === 0) {
     return (
       <>
-        <ProjectionStatus freshness={view.freshness} lastUpdatedAt={view.lastUpdatedAt} />
+        <ProjectionStatus
+          freshness={view.freshness}
+          lastUpdatedAt={view.lastUpdatedAt}
+          synchronization={view.synchronization}
+        />
         <EmptyState
           title={uiText.public.competitionsEmptyTitle}
           description={uiText.public.competitionsEmptyDescription}
@@ -50,7 +54,11 @@ async function CompetitionList() {
 
   return (
     <>
-      <ProjectionStatus freshness={view.freshness} lastUpdatedAt={view.lastUpdatedAt} />
+      <ProjectionStatus
+        freshness={view.freshness}
+        lastUpdatedAt={view.lastUpdatedAt}
+        synchronization={view.synchronization}
+      />
       <ul className="public-index" aria-label={uiText.public.competitionsTitle}>
         {competitions.map((competition) => (
           <li key={competition.id}>

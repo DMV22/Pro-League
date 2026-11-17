@@ -10,6 +10,7 @@ const snapshot: PublicProjectionSnapshot = {
   state: {
     key: 'portal',
     revision: '1',
+    cacheGeneration: '[["portal","0"]]',
     lastUpdatedAt: '2026-03-01T09:00:00Z',
     seasonDate: null,
     seasonTimezone: null,
@@ -18,6 +19,38 @@ const snapshot: PublicProjectionSnapshot = {
   },
   payload: { kind: 'home', competitions: [] },
 }
+
+it('rejects a snapshot and fallback from an older confirmed cache generation', async () => {
+  let generation = snapshot.state.cacheGeneration
+  let unavailable = false
+  const reader = createPublicProjectionReader({
+    probe: async () => ({
+      kind: 'found',
+      state: { ...snapshot.state, cacheGeneration: generation },
+    }),
+    load: async () => {
+      if (unavailable) throw new PublicProjectionUnavailable()
+      return snapshot
+    },
+  })
+  await reader.read({ kind: 'home' })
+  generation = '[["portal","1"]]'
+  expect(await reader.read({ kind: 'home' })).toEqual({ kind: 'unavailable' })
+  unavailable = true
+  expect(await reader.read({ kind: 'home' })).toEqual({ kind: 'unavailable' })
+})
+
+it('keeps content freshness separate from delayed cache synchronization', async () => {
+  const reader = createPublicProjectionReader({
+    probe: async () => ({ kind: 'found', state: snapshot.state, synchronization: 'attention' }),
+    load: async () => snapshot,
+  })
+  expect(await reader.read({ kind: 'home' })).toMatchObject({
+    kind: 'ready',
+    freshness: 'fresh',
+    synchronization: 'attention',
+  })
+})
 
 it('discards an old projection as soon as a changed source or hidden route is confirmed', async () => {
   let mode: 'old' | 'new' | 'hidden' | 'offline' = 'old'

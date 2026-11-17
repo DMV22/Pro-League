@@ -34,6 +34,14 @@ not its isolation guarantees. Local implementation is not proof of cloud accepta
   and all application-table counts are checked before reuse. Mismatch stops the
   operation; there is no implicit reset, imported Production data or fallback.
 - The reader login has only the current public-projection SELECT allowlist.
+  Ordinary cache generation/status reads additionally have column-only SELECT on
+  `cache_invalidation_intents(id, semantic_target, committed_version, urgency, state, created_at)`
+  and `outbox_messages(id, state)`. Whole-table SELECT on those technical tables is not
+  granted; payload, correlation/causation, leases, private data and writes remain inaccessible.
+  Preparation applies this reviewed additive capability to existing readers too, without
+  rotating credentials. Unexpected column reads/writes or table writes stop preparation;
+  they are never silently revoked or repaired. Reader verification checks column-level
+  privileges as well as the existing whole-table allowlist.
   Its stable per-branch password is derived from the private state key. Only
   its pooled URL and non-secret identity are set on the **validated matching**
   Render Preview. Parent service, owner, repository, branch, URL and existing
@@ -48,6 +56,13 @@ not its isolation guarantees. Local implementation is not proof of cloud accepta
   stages; a changed revision cannot be marked ready by an obsolete run.
 
 ## Activation prerequisites — operator actions, not performed by local code
+
+For the #133 cache-reader correction, the trusted changes in `scripts/preview/database.ts`
+and `scripts/preview/reader-tables.ts` must reach `main` through a separately reviewed minimal
+PR before a **new** `Isolated Preview` dispatch from `main`. Updating only the application
+PR or rerunning an old run does not replace its pinned controller. Ordinary preparation
+then adds the narrow grants on the verified isolated Preview; no database reset, new worker
+credentials or broad Outbox grant is required. Do not run unreviewed PR code with owner keys.
 
 1. Review this implementation on its feature branch. Do **not** merge all of
    `develop` into `main` to activate it.

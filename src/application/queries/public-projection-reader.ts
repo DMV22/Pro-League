@@ -67,6 +67,7 @@ export function createPublicProjectionReader(dependencies: Dependencies) {
               previous &&
               (previous.snapshot.state.key !== probe.state.key ||
                 previous.snapshot.state.revision !== probe.state.revision ||
+                previous.snapshot.state.cacheGeneration !== probe.state.cacheGeneration ||
                 previous.snapshot.state.seasonDate !== probe.state.seasonDate)
             )
               verified.delete(key)
@@ -74,6 +75,7 @@ export function createPublicProjectionReader(dependencies: Dependencies) {
             if (
               snapshot.state.key !== probe.state.key ||
               snapshot.state.revision !== probe.state.revision ||
+              snapshot.state.cacheGeneration !== probe.state.cacheGeneration ||
               snapshot.state.seasonDate !== probe.state.seasonDate
             )
               throw new PublicProjectionChanged()
@@ -81,6 +83,7 @@ export function createPublicProjectionReader(dependencies: Dependencies) {
             return {
               kind: 'ready',
               freshness: 'fresh',
+              ...(probe.synchronization ? { synchronization: probe.synchronization } : {}),
               lastUpdatedAt: snapshot.state.lastUpdatedAt,
               payload: snapshot.payload,
             }
