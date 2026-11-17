@@ -142,6 +142,12 @@ Render deployment hooks or a new paid worker/cron service. No cloud settings or 
 are provisioned by #128. Automatic scheduling/deployment activation needs separate
 approval and an explicitly supervised runner before any feature relies on timely effects.
 
+Issue #133 adds a separate feature-owned machine Route Handler for ordinary public cache
+invalidation; it does not activate scheduling or change this generic CLI composition.
+It scopes claims and diagnostics to its registered cache message type, uses restricted
+worker credentials and confirms a durable read-generation watermark before best-effort
+Next.js tag reclamation. See [the cache dispatch runbook](../operations/public-projection-cache.md#ordinary-post-commit-invalidation-m4--133).
+
 Supply a private `OUTBOX_DATABASE_URL` in the operator process environment; the CLI never
 falls back to application or migration URLs. Confirm the exact target database name:
 
