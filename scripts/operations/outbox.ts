@@ -55,7 +55,10 @@ async function main() {
     const role = await client.query<{ elevated: boolean }>(`SELECT rolsuper OR rolcreaterole OR
       has_table_privilege(current_user, 'app.outbox_messages', 'TRUNCATE') AS elevated FROM pg_roles WHERE rolname = current_user`)
     if (role.rows[0]?.elevated !== false) throw new OutboxFailure('invalid')
-    const delivery = createOutboxDelivery(drizzle({ client }))
+    const delivery = createOutboxDelivery(
+      drizzle({ client }),
+      mode === 'dispatch' ? { messageTypes: Object.keys(runtimeOutboxHandlers) } : undefined,
+    )
     const result =
       mode === 'inspect'
         ? await delivery.listProblems(policy.maxMessages)

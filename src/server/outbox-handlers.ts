@@ -1,5 +1,5 @@
 import 'server-only'
 import type { OutboxHandlers } from '../modules/operations/application/dispatch-outbox'
 
-/** Register reviewed, idempotent production adapters here as their owning features ship. No test handler. */
+/** Standalone Node handlers only. Next cache delivery belongs to its protected Route Handler. */
 export const runtimeOutboxHandlers: OutboxHandlers = Object.freeze({})

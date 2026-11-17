@@ -11,7 +11,26 @@ import {
   validateProblemLimit,
 } from '../application/delivery-policy'
 
-export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
+export function createOutboxDelivery(
+  database: Database,
+  options?: Readonly<{ messageTypes: readonly string[] }>,
+): OutboxDeliveryPort {
+  const types = options ? [...options.messageTypes] : undefined
+  if (
+    types &&
+    (!types.length ||
+      types.length > 16 ||
+      types.some(
+        (type) => typeof type !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$/.test(type),
+      ))
+  )
+    throw new Error('Invalid Outbox type scope')
+  const scope = types
+    ? sql`${outboxMessages.messageType} in (${sql.join(
+        types.map((type) => sql`${type}`),
+        sql`, `,
+      )})`
+    : sql`true`
   return {
     async listProblems(limit) {
       validateProblemLimit(limit)
@@ -26,8 +45,11 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
           })
           .from(outboxMessages)
           .where(
-            sql`${outboxMessages.state} in ('failed', 'exhausted') or
+            and(
+              scope,
+              sql`${outboxMessages.state} in ('failed', 'exhausted') or
             (${outboxMessages.state} = 'leased' and ${outboxMessages.leaseUntilAt} <= clock_timestamp())`,
+            ),
           )
           .orderBy(asc(outboxMessages.updatedAt), asc(outboxMessages.id))
           .limit(limit)
@@ -48,10 +70,13 @@ export function createOutboxDelivery(database: Database): OutboxDeliveryPort {
             .select()
             .from(outboxMessages)
             .where(
-              sql`
+              and(
+                scope,
+                sql`
             (${outboxMessages.state} = 'pending' and ${outboxMessages.availableAt} <= clock_timestamp()) or
             (${outboxMessages.state} = 'leased' and ${outboxMessages.leaseUntilAt} <= clock_timestamp())
           `,
+              ),
             )
             .orderBy(asc(outboxMessages.availableAt), asc(outboxMessages.id))
             .limit(options.limit)
