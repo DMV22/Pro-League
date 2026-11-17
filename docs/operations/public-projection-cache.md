@@ -160,6 +160,15 @@ The browser suite creates ephemeral worker/runtime logins and hides its syntheti
 afterward, retaining immutable slug history. Its owner-only synthetic source-clock freeze is
 a test technique proving generation-based refresh; no application bypass is installed.
 
+The browser runtime login uses the same public-table allowlist and cache-evidence column
+grants as the restricted Preview reader, not `app_runtime` membership. It also verifies that
+Outbox payload/lease fields, Audit, private player data, the migration ledger and cache writes
+are denied, and that unexpected extra grants make provisioning fail closed. This covers the
+#143 cloud regression: the older Preview allowlist lacked permissions for the new cache
+state query (`42501`). Both provisioning paths now use the same narrowly scoped policy.
+See [the trusted-controller rollout note](isolated-preview-automation.md#activation-prerequisites--operator-actions-not-performed-by-local-code)
+before repeating cloud acceptance; local correction alone does not update the deployed reader.
+
 ### Local implementation evidence (2026-11-17)
 
 - All 258 unit tests passed; TypeScript and production build passed.

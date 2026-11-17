@@ -3,6 +3,7 @@ import pg from 'pg'
 import { loadProjectEnv } from './load-env'
 import { assertMigrationLedger, readMigrationManifest, type LedgerRow } from './migration-ledger'
 import { assertPreviewSqlIdentity, readPreviewOperationsTarget } from './preview-preflight'
+import { previewReaderTables, grantPreviewReaderCacheAccess } from '../preview/reader-tables'
 
 loadProjectEnv()
 const args = process.argv.slice(2)
@@ -30,32 +31,6 @@ const client = new pg.Client({
   connectionTimeoutMillis: 15_000,
   statement_timeout: 30_000,
 })
-// Only tables read by the M3 public projections; no Admin, personal data or ledger grants.
-const tables = [
-  'competitions',
-  'competition_slugs',
-  'seasons',
-  'season_slugs',
-  'competition_stages',
-  'competition_stage_versions',
-  'fixture_rounds',
-  'league_fixture_slots',
-  'match_participant_assignments',
-  'matches',
-  'match_result_versions',
-  'match_schedule_revisions',
-  'played_score_versions',
-  'technical_results',
-  'season_entries',
-  'teams',
-  'points_schemes',
-  'ranking_rule_sets',
-  'standing_adjustment_decisions',
-  'stage_participant_slots',
-  'stage_participant_assignments',
-  'tie_breakers',
-  'public_projection_revisions',
-]
 try {
   await client.connect()
   await assertPreviewSqlIdentity(client, identity)
@@ -81,8 +56,9 @@ try {
   await client.query(`GRANT CONNECT ON DATABASE "${identity.database}" TO "${role}"`)
   await client.query(`GRANT USAGE ON SCHEMA app TO "${role}"`)
   await client.query(
-    `GRANT SELECT ON ${tables.map((table) => `app."${table}"`).join(', ')} TO "${role}"`,
+    `GRANT SELECT ON ${previewReaderTables.map((table) => `app."${table}"`).join(', ')} TO "${role}"`,
   )
+  await grantPreviewReaderCacheAccess(client, role)
   await client.query(`ALTER ROLE "${role}" SET default_transaction_read_only = on`)
   await client.query('COMMIT')
   console.info(

@@ -6,6 +6,11 @@ import { createServer } from 'node:net'
 import pg from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { createTransactionAdapter } from '../../src/server/db/transaction'
+import {
+  previewReaderTables,
+  grantPreviewReaderCacheAccess,
+  verifyPreviewReaderCacheAccess,
+} from '../../scripts/preview/reader-tables'
 import { createOutboxDelivery } from '../../src/modules/operations/infrastructure/outbox-delivery'
 import { createCacheInvalidationDelivery } from '../../src/modules/operations/infrastructure/cache-invalidation-repository'
 import { createCacheInvalidationHandler } from '../../src/modules/operations/application/cache-invalidation-handler'
@@ -51,12 +56,32 @@ test.beforeAll(async () => {
   fixtures = new pg.Client({ connectionString: url.toString(), connectionTimeoutMillis: 5000 })
   await fixtures.connect()
   // Names/passwords are locally generated hexadecimal, never caller-supplied SQL.
-  for (const [name, group] of [
-    [runtimeRole, 'app_runtime'],
-    [workerRole, 'app_worker'],
-  ]) {
+  for (const name of [runtimeRole, workerRole]) {
     await fixtures.query(`CREATE ROLE "${name}" LOGIN PASSWORD '${password}'`)
-    await fixtures.query(`GRANT ${group} TO "${name}"`)
+  }
+  await fixtures.query(`GRANT app_worker TO "${workerRole}"`)
+  await fixtures.query(`GRANT USAGE ON SCHEMA app TO "${runtimeRole}"`)
+  await fixtures.query(
+    `GRANT SELECT ON ${previewReaderTables.map((table) => `app."${table}"`).join(',')} TO "${runtimeRole}"`,
+  )
+  await fixtures.query(`ALTER ROLE "${runtimeRole}" SET default_transaction_read_only=on`)
+  await grantPreviewReaderCacheAccess(fixtures, runtimeRole)
+  await grantPreviewReaderCacheAccess(fixtures, runtimeRole) // Same policy, no credential rotation.
+  await verifyPreviewReaderCacheAccess(fixtures, runtimeRole)
+  for (const unexpected of [
+    `GRANT SELECT (payload) ON app.outbox_messages TO "${runtimeRole}"`,
+    `GRANT UPDATE (state) ON app.cache_invalidation_intents TO "${runtimeRole}"`,
+    `GRANT TRUNCATE ON app.outbox_messages TO "${runtimeRole}"`,
+  ]) {
+    await fixtures.query('BEGIN')
+    try {
+      await fixtures.query(unexpected)
+      await expect(grantPreviewReaderCacheAccess(fixtures, runtimeRole)).rejects.toThrow(
+        'no automatic repair',
+      )
+    } finally {
+      await fixtures.query('ROLLBACK')
+    }
   }
   await fixtures.query(
     "insert into app.competitions(id,display_name,visibility) values($1,$2,'public')",
@@ -75,6 +100,26 @@ test.beforeAll(async () => {
   runtimeURL.password = password
   const workerURL = new URL(runtimeURL)
   workerURL.username = workerRole
+  const reader = new pg.Client({ connectionString: runtimeURL.toString() })
+  await reader.connect()
+  try {
+    for (const statement of [
+      'SELECT payload FROM app.outbox_messages LIMIT 0',
+      'SELECT lease_until_at FROM app.outbox_messages LIMIT 0',
+      'SELECT * FROM app.cache_invalidation_intents LIMIT 0',
+      'SELECT * FROM app.audit_events LIMIT 0',
+      'SELECT * FROM app.player_private_details LIMIT 0',
+      'SELECT * FROM app.__drizzle_migrations LIMIT 0',
+    ])
+      await expect(reader.query(statement)).rejects.toMatchObject({ code: '42501' })
+    // The grants must deny writes even if a caller turns off the session's read-only default.
+    await reader.query('SET default_transaction_read_only=off')
+    await expect(
+      reader.query('UPDATE app.cache_invalidation_intents SET state=state WHERE false'),
+    ).rejects.toMatchObject({ code: '42501' })
+  } finally {
+    await reader.end()
+  }
   const reservation = createServer().listen(0, '127.0.0.1')
   await once(reservation, 'listening')
   const address = reservation.address()
@@ -139,6 +184,12 @@ test.afterAll(async () => {
         competitionId,
       ])
       for (const name of [runtimeRole, workerRole]) {
+        await fixtures.query(`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA app FROM "${name}"`)
+        await fixtures.query(
+          `REVOKE SELECT (id,semantic_target,committed_version,urgency,state,created_at) ON app.cache_invalidation_intents FROM "${name}"`,
+        )
+        await fixtures.query(`REVOKE SELECT (id,state) ON app.outbox_messages FROM "${name}"`)
+        await fixtures.query(`REVOKE USAGE ON SCHEMA app FROM "${name}"`)
         await fixtures.query(`DROP ROLE IF EXISTS "${name}"`)
       }
     } finally {
