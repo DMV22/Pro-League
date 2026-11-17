@@ -68,7 +68,11 @@ async function SeasonContent({ params }: ContentProps) {
 
   return (
     <div className="public-page">
-      <ProjectionStatus freshness={result.freshness} lastUpdatedAt={result.lastUpdatedAt} />
+      <ProjectionStatus
+        freshness={result.freshness}
+        lastUpdatedAt={result.lastUpdatedAt}
+        synchronization={result.synchronization}
+      />
       <nav className="public-breadcrumbs" aria-label="Навігаційний ланцюжок">
         <Link href="/#competitions">{uiText.navigation.competitions}</Link>
         <span aria-hidden="true">/</span>

@@ -45,6 +45,44 @@ try {
   const season = await query.read(route, new Date('2026-04-05T21:30:00Z'))
   assert.ok(season.kind === 'found')
   assert.equal(season.state.seasonDate, '2026-04-06')
+  // A Season snapshot also carries its Competition tag. Its revision is a separate clock.
+  await client.query(
+    "update app.competitions set display_name=display_name || ' changed' where id='01990000-0000-7000-8000-000000009401'",
+  )
+  const competitionClock = await client.query<{ revision: string }>(
+    "select revision::text from app.public_projection_revisions where projection_key='competition:01990000-0000-7000-8000-000000009401'",
+  )
+  const seasonBefore = await query.read(route, new Date('2026-04-05T21:30:00Z'))
+  assert(seasonBefore.kind === 'found')
+  await client.query(
+    `insert into app.cache_invalidation_intents(id,semantic_target,committed_version,created_at)
+    values('01990000-0000-7000-8000-000000009405','competition:01990000-0000-7000-8000-000000009401',$1,clock_timestamp()-interval '61 seconds')`,
+    [competitionClock.rows[0].revision],
+  )
+  const seasonPending = await query.read(route, new Date('2026-04-05T21:30:00Z'))
+  assert(seasonPending.kind === 'found' && seasonPending.synchronization === 'attention')
+  assert.equal(seasonPending.state.cacheGeneration, seasonBefore.state.cacheGeneration)
+  await client.query(
+    "update app.cache_invalidation_intents set state='confirmed',confirmed_at=clock_timestamp() where id='01990000-0000-7000-8000-000000009405'",
+  )
+  const seasonConfirmed = await query.read(route, new Date('2026-04-05T21:30:00Z'))
+  assert(seasonConfirmed.kind === 'found' && seasonConfirmed.synchronization === undefined)
+  assert.notEqual(seasonConfirmed.state.cacheGeneration, seasonBefore.state.cacheGeneration)
+  assert.equal(seasonConfirmed.state.revision, seasonBefore.state.revision)
+  assert.deepEqual(
+    JSON.parse(seasonConfirmed.state.cacheGeneration).map((item: string[]) => item[0]),
+    [
+      'competition:01990000-0000-7000-8000-000000009401',
+      'schedule:01990000-0000-7000-8000-000000009403',
+      'season:01990000-0000-7000-8000-000000009403',
+      'standings:01990000-0000-7000-8000-000000009403',
+    ],
+  )
+  await client.query(`insert into app.cache_invalidation_intents(id,semantic_target,committed_version,state,confirmed_at)
+    values('01990000-0000-7000-8000-000000009406','portal',1,'confirmed',clock_timestamp())`)
+  const unrelated = await query.read(route, new Date('2026-04-05T21:30:00Z'))
+  assert(unrelated.kind === 'found')
+  assert.equal(unrelated.state.cacheGeneration, seasonConfirmed.state.cacheGeneration)
   assert.deepEqual(await query.read({ kind: 'competition', competitionSlug: 'CACHE-FIXTURE' }), {
     kind: 'redirect',
     pathname: '/competitions/cache-fixture',

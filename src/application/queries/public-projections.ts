@@ -14,6 +14,8 @@ export type PublicProjectionRequest =
 export type PublicProjectionState = {
   key: string
   revision: string
+  /** Ordered per-target confirmed watermarks; part of the public cache identity. */
+  cacheGeneration: string
   lastUpdatedAt: string | null
   seasonDate: string | null
   seasonTimezone: string | null
@@ -22,7 +24,7 @@ export type PublicProjectionState = {
 }
 
 export type PublicProjectionProbe =
-  | { kind: 'found'; state: PublicProjectionState }
+  | { kind: 'found'; state: PublicProjectionState; synchronization?: 'pending' | 'attention' }
   | { kind: 'notFound' }
   | { kind: 'redirect'; pathname: string }
 
@@ -43,6 +45,7 @@ export type PublicProjectionView =
   | {
       kind: 'ready'
       freshness: 'fresh' | 'stale'
+      synchronization?: 'pending' | 'attention'
       lastUpdatedAt: string | null
       payload: PublicProjectionPayload
     }

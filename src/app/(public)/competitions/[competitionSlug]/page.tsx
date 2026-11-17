@@ -63,7 +63,11 @@ async function CompetitionContent({ params }: ContentProps) {
   const { competition, seasons } = result.payload
   return (
     <div className="public-page">
-      <ProjectionStatus freshness={result.freshness} lastUpdatedAt={result.lastUpdatedAt} />
+      <ProjectionStatus
+        freshness={result.freshness}
+        lastUpdatedAt={result.lastUpdatedAt}
+        synchronization={result.synchronization}
+      />
       <nav className="public-breadcrumbs" aria-label="Навігаційний ланцюжок">
         <Link href="/#competitions">{uiText.public.backToCompetitions}</Link>
       </nav>
