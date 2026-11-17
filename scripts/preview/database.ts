@@ -11,7 +11,11 @@ import {
 import { seedGoldenSeason } from '../db/golden-season-fixture'
 import { assertPreviewDatabaseUrl, type PreviewIdentity } from '../../src/server/db/preview-target'
 import { verifyGoldenInventory } from './fixture'
-import { previewReaderTables } from './reader-tables'
+import {
+  previewReaderTables,
+  grantPreviewReaderCacheAccess,
+  verifyPreviewReaderCacheAccess,
+} from './reader-tables'
 
 export const goldenDigest = '356709a5a2fd1b8d430751f3d00a1e071d85f742d05f730cc0caec9cadc9c961'
 const settings = {
@@ -159,6 +163,9 @@ export async function prepareDatabase(
       [role],
     )
     assert(memberships.rowCount === 0, 'Reader has unexpected memberships')
+    // Deliberate additive policy upgrade for both new and already verified readers.
+    // Refuses unexpected cache grants; changes share this preparation transaction.
+    await grantPreviewReaderCacheAccess(client, role)
     await client.query('COMMIT')
     await verifyReader(identity, readerUrl(identity, password), marker)
   } catch {
@@ -207,6 +214,7 @@ export async function verifyReader(
       ),
       'Reader table grants differ',
     )
+    await verifyPreviewReaderCacheAccess(client, row.role)
     const schemas = await client.query(
       "SELECT 1 FROM pg_namespace WHERE nspname IN ('app','public') AND has_schema_privilege(current_user,oid,'CREATE')",
     )
